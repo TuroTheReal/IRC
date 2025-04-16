@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Command.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
+/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:26:09 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/14 13:31:18 by dsindres         ###   ########.fr       */
+/*   Updated: 2025/04/16 14:49:20 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,10 +15,10 @@
 
 class Command
 {
-    public:
-        Command(std::string raw_command);
-        void execute(std::shared_ptr<Client> client);
+	public:
+		Command(std::string raw_command);
+		void execute(std::shared_ptr<Client> client);
 
-    private:
-        std::string raw_command;
+	private:
+		std::string raw_command;
 };

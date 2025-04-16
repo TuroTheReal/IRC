@@ -6,11 +6,12 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/16 14:06:25 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/16 15:15:31 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/Server.hpp"
+#include "../include/Client.hpp"
 
 void Server::createSocket(){
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -57,7 +58,7 @@ void Server::newClient(){
 	if (fcntl(client_fd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		close(client_fd);
-		throw std::runtime_error(std::string("Error: fcntl: ") + std::strerror(errno));
+			throw std::runtime_error(std::string("Error: fcntl: ") + std::strerror(errno));
 	}
 
 	struct pollfd client;
@@ -66,10 +67,54 @@ void Server::newClient(){
 	client.revents = 0;
 
 	_fds.push_back(client);
+
+	Client* new_client = new Client(client_fd); // pourquoi allocation ?? voir avec le D
+	_clients.push_back(new_client);
 }
 
-// void Server::handleClient(size_t index){
-// }
+void Server::handleClient(size_t index){
+	int client_fd = index;
+	char buffer[1024];
+
+	ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+
+	if (bytes_read <= 0)
+	{
+		if (bytes_read == 0)
+			std::cout << "Client Disconnected" << std::endl;
+		else
+			throw std::runtime_error(std::string("Error: recv: ") + std::strerror(errno));
+		removeClient(index);
+		return ;
+	}
+	buffer[bytes_read] = '\0';
+	std::string msg(buffer);
+
+	std::vector<Client*>::iterator it = _clients.begin();
+	std::vector<Client*>::iterator ite = _clients.end();
+
+	int res;
+
+	for (; it != ite; it++)
+	{
+		if (it.get_socket() == client_fd)
+			res = it.received_message(buffer, _clients, _channels);
+	}
+
+	std::ostringstream oss;
+
+	if (it == ite)
+	{
+		oss << "Error: Cannot find client related to fd " << client_fd;
+		throw std::runtime_error(oss.str());
+	}
+
+	if (res < 0)
+	{
+		oss << "Error while with the message of fd " << client_fd;
+		throw std::runtime_error(oss.str());
+	}
+}
 
 void Server::removeClient(size_t index){
 	close(_fds[index].fd);
@@ -95,8 +140,8 @@ void Server::run(){
 				continue;
 			if (_fds[i].fd == _server_socket && _fds[i].revents & POLLIN) // & et non == car revents peut etre  = POLLIN mais pas que
 				newClient();
-			// else if (_fds[i].revents & POLLIN)
-			// 	handleClient(i);
+			else if (_fds[i].revents & POLLIN)
+				handleClient(i);
 			else if (_fds[i].revents & (POLLHUP | POLLERR | POLLNVAL)) // clean deco | error | invalid fd
 			{
 				removeClient(i);

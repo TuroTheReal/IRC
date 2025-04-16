@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/16 14:09:20 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/16 14:46:50 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <sstream>
 #include <cstdlib>
 #include <unistd.h>
 #include <vector>
@@ -44,6 +45,6 @@ class Server {
 		void handleClient(size_t index); //buffer + recv pour recevoir les donnees
 		void removeClient(size_t index); //close + clean data + (erase (begin + i)
 		// void cleanup(); // shutdowm ou SIGINT/SIGTERM == fin boucle + cleanup ?
-		// std::vector<Client>		_clients;
-		// std::vector<Channels>	_channels;
+		std::vector<Client*>		_clients;
+		// std::vector<Channels*>	_channels;
 };
