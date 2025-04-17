@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/16 15:35:39 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/17 14:14:24 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,66 @@ void Server::listenSocket(){
 	}
 }
 
+volatile sig_atomic_t _isON = 1;
+
+void handleSignal(int signum){
+	(void)signum;
+	_isON = 0;
+}
+
+void  Server::initErrorCodes(){
+	_errorCodes["401"] = "No such nick/channel";
+	_errorCodes["403"] = "No such channel";
+	_errorCodes["421"] = "Unknown command";
+	_errorCodes["431"] = "No nickname given";
+	_errorCodes["432"] = "Erroneous nickname";
+	_errorCodes["433"] = "Nickname is already in use";
+	_errorCodes["441"] = "They aren't on that channel";
+	_errorCodes["442"] = "You're not on that channel";
+	_errorCodes["461"] = "Not enough parameters";
+	_errorCodes["472"] = "Unknown mode char";
+	_errorCodes["473"] = "Cannot join channel (+i)";
+	_errorCodes["474"] = "Cannot join channel (+b)";
+	_errorCodes["475"] = "Cannot join channel (+k)";
+	_errorCodes["476"] = "Bad channel mask";
+	_errorCodes["481"] = "Permission Denied (You're not an IRC operator)";
+	_errorCodes["482"] = "You're not channel operator";
+	_errorCodes["484"] = "Your connection is restricted";
+	_errorCodes["501"] = "Unknown MODE flag";
+	_errorCodes["502"] = "Cannot change mode for other users";
+}
+
+void Server::sendClientError(int client_fd, const std::string& key, const std::string& cmd){
+	// std::vector<Client *>::iterator it = _clients.begin();
+	std::string nickname = "*";
+
+	// for (; it != _clients.end(); it++)
+	// {
+	// 	if (client_fd == (*it)->get_socket())
+	// 		nickname = (*it)->get_nickname();
+	// 	else
+	// 		nickname = "*";
+	// }
+
+	std::string errorMsg;
+	std::map<std::string, std::string>::iterator ite = _errorCodes.find(key);
+	if (ite != _errorCodes.end())
+		errorMsg = ite->second;
+	else
+		errorMsg = "Error";
+
+	std::string to_send = ":" + _server_name + " " + key + " " + nickname;
+
+	if (!cmd.empty())
+		to_send += " " + cmd;
+
+	to_send += errorMsg + "\r\n";
+
+	ssize_t sent = send(client_fd, to_send.c_str(), to_send.length(), 0);
+	if (sent < 0)
+		throw std::runtime_error(std::string("Error: send: ") + std::strerror(errno));
+}
+
 void Server::newClient(){
 	std::cout << "Connection received" << std::endl;
 
@@ -49,22 +109,47 @@ void Server::newClient(){
 	socklen_t addr_len = sizeof(client_addr);
 
 	int client_fd = accept(_server_socket, (struct sockaddr*)&client_addr, &addr_len);
-
 	if (client_fd < 0){
 		if (errno != EAGAIN && errno != EWOULDBLOCK)
 			throw std::runtime_error(std::string("Error: accept: ") + std::strerror(errno));
 	}
 
-	if (fcntl(client_fd, F_SETFL, O_NONBLOCK) == -1)
+	if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(client_fd);
 			throw std::runtime_error(std::string("Error: fcntl: ") + std::strerror(errno));
 	}
 
-	_fds.push_back({client_fd, POLLIN, 0});
+	struct pollfd client;
+	client.fd = client_fd;
+	client.events = POLLIN;
+	client.revents = 0;
 
-	Client* new_client = new Client(client_fd);
-	_clients.push_back(new_client);
+	_fds.push_back(client);
+
+	// Client* new_client = new Client(client_fd);
+	// _clients.push_back(new_client);
+}
+
+void Server::removeClient(size_t index){
+	// int fd = _fds[index].fd;
+	close(_fds[index].fd);
+	_fds.erase(_fds.begin() + index);
+
+	// std::vector<Client*>::iterator it = _clients.begin();
+	// std::vector<Client*>::iterator ite = _clients.end();
+
+	// for (; it != ite; it++)
+	// {
+	// 	if ((*it)->get_socket() == fd)
+	// 	{
+	// 		delete *it;
+	// 		_clients.erase(it);
+	// 		break;
+	// 	}
+	// }
+	// clean data dans les differentes classes : _client.erase(_fds[index].fd) || _client.erase(_fds[index])
+	std::cout << "Client disconnected" << std::endl;
 }
 
 void Server::handleClient(size_t index){
@@ -83,59 +168,78 @@ void Server::handleClient(size_t index){
 		return ;
 	}
 	buffer[bytes_read] = '\0';
-	std::string msg(buffer);
+	_clientBuffers[client_fd] += buffer;
+	processClientBuffer(client_fd);
+}
 
-	std::vector<Client*>::iterator it = _clients.begin();
-	std::vector<Client*>::iterator ite = _clients.end();
-	std::ostringstream oss;
+void Server::processClientBuffer(int client_fd){
+	std::string& buffer = _clientBuffers[client_fd];
 
-	for (; it != ite; it++)
+	size_t endPos;
+
+	while ((endPos = buffer.find("\r\n")) != std::string::npos)
 	{
-		if ((*it)->get_socket() == client_fd)
-		{
-			if ((*it)->received_message(buffer, _clients, _channels) < 0) // comm avec tous meme si pas de canal (broadcast)
-			{
-				oss << "Error while with the message of fd " << client_fd;
-				throw std::runtime_error(oss.str());
-			}
-		}
-	}
-
-	if (it == ite)
-	{
-		oss << "Error: Cannot find client related to fd " << client_fd;
-		throw std::runtime_error(oss.str());
+		std::string msg = buffer.substr(0, endPos);
+		buffer.erase(0, endPos + 2); //skip \r\n
+		parseCommand(msg, client_fd);
 	}
 }
 
-void Server::removeClient(size_t index){
-	int fd = _fds[index].fd;
-	close(_fds[index].fd);
-	_fds.erase(_fds.begin() + index);
+void Server::parseCommand(std::string msg, int client_fd){
+	if (msg.empty())
+		return;
 
-	std::vector<Client*>::iterator it = _clients.begin();
-	std::vector<Client*>::iterator ite = _clients.end();
+	std::vector<std::string> params;
+	std::string cmd;
 
-	for (; it != ite; it++)
+	std::istringstream iss(msg);
+	iss >> cmd;
+
+	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
+
+	std::string token;
+	while (iss >> token)
 	{
-		if ((*it)->get_socket() == fd)
-		{
-			delete *it;
-			_clients.erase(it);
+		if (token[0] == ':'){
+			std::string start = token.substr(1);
+			std::string rest;
+			getline(iss, rest);
+			params.push_back(start + rest);
 			break;
 		}
+		if (token == "OK")
+			std::cout << "OK received" << std::endl;
+		// if (token == "KICK")
+		// 	handleKick(client_fd, params);// it->kick(std::string client_to_eject, std::string channel_name, this->_clients, this->_channels)
+		// else if  (token == "INVITE")
+		// 	handleInvite(client_fd, params);
+		// else if  (token == "TOPIC")
+		// 	handleTopic(client_fd, params);
+		// else if  (token == "MODE")
+		// 	handleMode(client_fd, params);
+		// else if  (token == "JOIN")
+		// 	handleJoin(client_fd, params);
+		// else if  (token == "PRIVMSG")
+		// 	handlePrivmsg(client_fd, params);
+		// else if  (token == "MODE")
+		// 	handleMode(client_fd, params);
+		else
+		std::cerr << "CANT" << std::endl;
+		// sendClientError(client_fd, "421,", cmd);
+		(void)client_fd;
 	}
-
-	// clean data dans les differentes classes : _client.erase(_fds[index].fd) || _client.erase(_fds[index])
-	std::cout << "Client disconnected" << std::endl;
 }
 
 void Server::run(){
+	signal(SIGINT, handleSignal);
+	signal(SIGTERM, handleSignal);
+	signal(SIGQUIT, handleSignal);
+
 	_fds.resize(1);
 	_fds[0].fd = _server_socket;
 	_fds[0].events = POLLIN;
 
-	while(1)
+	while(_isON)
 	{
 		if (poll(_fds.data(), _fds.size(), -1) < 0){
 			if (errno == EINTR) continue;
@@ -161,10 +265,13 @@ void Server::run(){
 
 Server::Server(int port, std::string password) : _port(port), _password(password)
 {
+	_isON = 1;
+	_server_name = "IRC";
 	try {
 		createSocket();
 		bindSocket();
 		listenSocket();
+		initErrorCodes();
 		run();
 	}
 	catch (std::exception const &e){

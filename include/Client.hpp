@@ -6,10 +6,11 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:25:10 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/16 15:05:12 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/17 14:07:51 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#pragma once
 #include <string>
 #include <memory>
 #include <list>
