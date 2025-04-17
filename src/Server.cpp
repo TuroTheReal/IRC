@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/17 14:14:24 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/17 16:01:08 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -103,7 +103,7 @@ void Server::sendClientError(int client_fd, const std::string& key, const std::s
 }
 
 void Server::newClient(){
-	std::cout << "Connection received" << std::endl;
+	std::cout << "Connection received from new" << std::endl;
 
 	struct sockaddr_in client_addr;
 	socklen_t addr_len = sizeof(client_addr);
@@ -149,11 +149,11 @@ void Server::removeClient(size_t index){
 	// 	}
 	// }
 	// clean data dans les differentes classes : _client.erase(_fds[index].fd) || _client.erase(_fds[index])
-	std::cout << "Client disconnected" << std::endl;
+	std::cout << "Client disconnected from remove" << std::endl;
 }
 
 void Server::handleClient(size_t index){
-	int client_fd = index;
+int client_fd = _fds[index].fd;
 	char buffer[1024];
 
 	ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
@@ -161,7 +161,7 @@ void Server::handleClient(size_t index){
 	if (bytes_read <= 0)
 	{
 		if (bytes_read == 0)
-			std::cout << "Client Disconnected" << std::endl;
+			std::cout << "Client disconnected from handle" << std::endl;
 		else
 			throw std::runtime_error(std::string("Error: recv: ") + std::strerror(errno));
 		removeClient(index);
@@ -189,12 +189,13 @@ void Server::parseCommand(std::string msg, int client_fd){
 	if (msg.empty())
 		return;
 
+	std::cout << "Recu dans parseCommand" << std::endl;
+
 	std::vector<std::string> params;
 	std::string cmd;
-
 	std::istringstream iss(msg);
-	iss >> cmd;
 
+	iss >> cmd;
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
 	std::string token;
@@ -207,27 +208,66 @@ void Server::parseCommand(std::string msg, int client_fd){
 			params.push_back(start + rest);
 			break;
 		}
-		if (token == "OK")
-			std::cout << "OK received" << std::endl;
-		// if (token == "KICK")
-		// 	handleKick(client_fd, params);// it->kick(std::string client_to_eject, std::string channel_name, this->_clients, this->_channels)
-		// else if  (token == "INVITE")
-		// 	handleInvite(client_fd, params);
-		// else if  (token == "TOPIC")
-		// 	handleTopic(client_fd, params);
-		// else if  (token == "MODE")
-		// 	handleMode(client_fd, params);
-		// else if  (token == "JOIN")
-		// 	handleJoin(client_fd, params);
-		// else if  (token == "PRIVMSG")
-		// 	handlePrivmsg(client_fd, params);
-		// else if  (token == "MODE")
-		// 	handleMode(client_fd, params);
-		else
-		std::cerr << "CANT" << std::endl;
-		// sendClientError(client_fd, "421,", cmd);
-		(void)client_fd;
+		params.push_back(token);
 	}
+
+	if (cmd == "KICK")
+		std::cout << "KICK command (à implémenter)" << std::endl;
+	// handleKick(client_fd, params);
+	else if (cmd == "USER")
+	{
+		std::string response = ":server 002 * :Your host is localhost\r\n";
+		send(client_fd, response.c_str(), response.length(), 0);
+	}
+	// handleUser(client_fd, params);
+	else if (cmd == "PING")
+	{
+		std::string response = "PONG ";
+		if (!params.empty()) {
+			response += params[0];
+		}
+		response += "\r\n";
+		send(client_fd, response.c_str(), response.length(), 0);
+		std::cout << "PING reçu, PONG envoyé" << std::endl;
+	}
+	// handlePing(client_fd, params);
+	else if (cmd == "NICK")
+	{
+		if (!params.empty()) {
+			std::string nick = params[0];
+			std::cout << "NICK défini: " << nick << std::endl;
+			// Confirmation au client
+				std::string response = ":server 001 " + nick + " :Welcome to the IRC server\r\n";
+			send(client_fd, response.c_str(), response.length(), 0);
+		}
+	}
+	// handleNick(client_fd, params);
+	else if (cmd == "CAP")
+		std::cout << "CAP command (à implémenter)" << std::endl;
+	// handleCap(client_fd, params);
+	else if (cmd == "INVITE")
+		std::cout << "INVITE command (à implémenter)" << std::endl;
+	// handleInvite(client_fd, params);
+	else if (cmd == "TOPIC")
+		std::cout << "TOPIC command (à implémenter)" << std::endl;
+	// handleTopic(client_fd, params);
+	else if (cmd == "JOIN")
+		std::cout << "JOIN command (à implémenter)" << std::endl;
+	// handleJoin(client_fd, params);
+	else if (cmd == "PRIVMSG")
+		std::cout << "PRIVMSG command (à implémenter)" << std::endl;
+	// handlePrivmsg(client_fd, params);
+	else if (cmd == "MODE")
+		std::cout << "MODE command (à implémenter)" << std::endl;
+	// handleMode(client_fd, params);
+	else
+	{
+		std::cout << "Commande inconnue: " << cmd << std::endl;
+		std::string response = ":server 421 * " + cmd + " :Unknown command\r\n";
+		send(client_fd, response.c_str(), response.length(), 0);
+	}
+	// sendClientError(client_fd, "421", cmd);
+	(void)client_fd;
 }
 
 void Server::run(){
@@ -263,10 +303,8 @@ void Server::run(){
 	// cleanup();
 }
 
-Server::Server(int port, std::string password) : _port(port), _password(password)
-{
+Server::Server(int port, std::string password) : _port(port), _password(password), _server_name("IRC"){
 	_isON = 1;
-	_server_name = "IRC";
 	try {
 		createSocket();
 		bindSocket();
