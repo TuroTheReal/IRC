@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/16 15:15:31 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/16 15:35:39 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,14 +61,9 @@ void Server::newClient(){
 			throw std::runtime_error(std::string("Error: fcntl: ") + std::strerror(errno));
 	}
 
-	struct pollfd client;
-	client.fd = client_fd;
-	client.events = POLLIN;
-	client.revents = 0;
+	_fds.push_back({client_fd, POLLIN, 0});
 
-	_fds.push_back(client);
-
-	Client* new_client = new Client(client_fd); // pourquoi allocation ?? voir avec le D
+	Client* new_client = new Client(client_fd);
 	_clients.push_back(new_client);
 }
 
@@ -92,33 +87,45 @@ void Server::handleClient(size_t index){
 
 	std::vector<Client*>::iterator it = _clients.begin();
 	std::vector<Client*>::iterator ite = _clients.end();
-
-	int res;
+	std::ostringstream oss;
 
 	for (; it != ite; it++)
 	{
-		if (it.get_socket() == client_fd)
-			res = it.received_message(buffer, _clients, _channels);
+		if ((*it)->get_socket() == client_fd)
+		{
+			if ((*it)->received_message(buffer, _clients, _channels) < 0) // comm avec tous meme si pas de canal (broadcast)
+			{
+				oss << "Error while with the message of fd " << client_fd;
+				throw std::runtime_error(oss.str());
+			}
+		}
 	}
-
-	std::ostringstream oss;
 
 	if (it == ite)
 	{
 		oss << "Error: Cannot find client related to fd " << client_fd;
 		throw std::runtime_error(oss.str());
 	}
-
-	if (res < 0)
-	{
-		oss << "Error while with the message of fd " << client_fd;
-		throw std::runtime_error(oss.str());
-	}
 }
 
 void Server::removeClient(size_t index){
+	int fd = _fds[index].fd;
 	close(_fds[index].fd);
 	_fds.erase(_fds.begin() + index);
+
+	std::vector<Client*>::iterator it = _clients.begin();
+	std::vector<Client*>::iterator ite = _clients.end();
+
+	for (; it != ite; it++)
+	{
+		if ((*it)->get_socket() == fd)
+		{
+			delete *it;
+			_clients.erase(it);
+			break;
+		}
+	}
+
 	// clean data dans les differentes classes : _client.erase(_fds[index].fd) || _client.erase(_fds[index])
 	std::cout << "Client disconnected" << std::endl;
 }
