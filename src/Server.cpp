@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/17 16:01:08 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/22 14:42:56 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,25 +50,35 @@ void handleSignal(int signum){
 }
 
 void  Server::initErrorCodes(){
-	_errorCodes["401"] = "No such nick/channel";
-	_errorCodes["403"] = "No such channel";
-	_errorCodes["421"] = "Unknown command";
-	_errorCodes["431"] = "No nickname given";
-	_errorCodes["432"] = "Erroneous nickname";
-	_errorCodes["433"] = "Nickname is already in use";
-	_errorCodes["441"] = "They aren't on that channel";
-	_errorCodes["442"] = "You're not on that channel";
-	_errorCodes["461"] = "Not enough parameters";
-	_errorCodes["472"] = "Unknown mode char";
-	_errorCodes["473"] = "Cannot join channel (+i)";
-	_errorCodes["474"] = "Cannot join channel (+b)";
-	_errorCodes["475"] = "Cannot join channel (+k)";
-	_errorCodes["476"] = "Bad channel mask";
-	_errorCodes["481"] = "Permission Denied (You're not an IRC operator)";
-	_errorCodes["482"] = "You're not channel operator";
-	_errorCodes["484"] = "Your connection is restricted";
-	_errorCodes["501"] = "Unknown MODE flag";
-	_errorCodes["502"] = "Cannot change mode for other users";
+	_errorCodes["401"] = ": No such nick/channel";
+	_errorCodes["403"] = ": No such channel";
+	_errorCodes["421"] = ": Unknown command";
+	_errorCodes["431"] = ": No nickname given";
+	_errorCodes["432"] = ": Erroneous nickname";
+	_errorCodes["433"] = ": Nickname is already in use";
+	_errorCodes["441"] = ": They aren't on that channel";
+	_errorCodes["442"] = ": You're not on that channel";
+	_errorCodes["461"] = ": Not enough parameters";
+	_errorCodes["472"] = ": Unknown mode char";
+	_errorCodes["473"] = ": Cannot join channel (+i)";
+	_errorCodes["474"] = ": Cannot join channel (+b)";
+	_errorCodes["475"] = ": Cannot join channel (+k)";
+	_errorCodes["476"] = ": Bad channel mask";
+	_errorCodes["481"] = ": Permission Denied (You're not an IRC operator)";
+	_errorCodes["482"] = ": You're not channel operator";
+	_errorCodes["484"] = ": Your connection is restricted";
+	_errorCodes["501"] = ": Unknown MODE flag";
+	_errorCodes["502"] = ": Cannot change mode for other users";
+}
+
+void	Server::getHostName(){
+	char hostname[1024];
+	if (gethostname(hostname, sizeof(hostname)) == -1){
+        std::cerr << "Error: gethostname: " << strerror(errno) << std::endl;
+		_host_name = "localhost";
+	}
+	_host_name = std::string(hostname);
+	std::cout << "HN = " << _host_name << std::endl;
 }
 
 void Server::sendClientError(int client_fd, const std::string& key, const std::string& cmd){
@@ -153,7 +163,7 @@ void Server::removeClient(size_t index){
 }
 
 void Server::handleClient(size_t index){
-int client_fd = _fds[index].fd;
+	int client_fd = _fds[index].fd;
 	char buffer[1024];
 
 	ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
@@ -168,24 +178,31 @@ int client_fd = _fds[index].fd;
 		return ;
 	}
 	buffer[bytes_read] = '\0';
-	_clientBuffers[client_fd] += buffer;
+	std::cout << "Données brutes reçues: [" << buffer << "]" << std::endl;
+	_clientBuffers[client_fd] += std::string(buffer);
+
 	processClientBuffer(client_fd);
 }
 
 void Server::processClientBuffer(int client_fd){
-	std::string& buffer = _clientBuffers[client_fd];
+	if (_clientBuffers.find(client_fd) == _clientBuffers.end())
+	throw std::runtime_error(std::string("Error: client not found"));
 
+	std::string& buffer = _clientBuffers[client_fd];
+	std::cout << "Données dans buffer client: [" << buffer << "]" << std::endl;
 	size_t endPos;
 
 	while ((endPos = buffer.find("\r\n")) != std::string::npos)
 	{
 		std::string msg = buffer.substr(0, endPos);
 		buffer.erase(0, endPos + 2); //skip \r\n
+		std::cout << "Message complet extrait: [" << msg << "]" << std::endl;
 		parseCommand(msg, client_fd);
 	}
 }
 
 void Server::parseCommand(std::string msg, int client_fd){
+	std::cout << "Message brut reçu: [" << msg << "]" << std::endl;
 	if (msg.empty())
 		return;
 
@@ -211,64 +228,125 @@ void Server::parseCommand(std::string msg, int client_fd){
 		params.push_back(token);
 	}
 
+	std::cout << "CMD == [" << cmd << "]" << std::endl;
+
 	if (cmd == "KICK")
-		std::cout << "KICK command (à implémenter)" << std::endl;
-	// handleKick(client_fd, params);
+		handleKick(client_fd, params);
 	else if (cmd == "USER")
-	{
-		std::string response = ":server 002 * :Your host is localhost\r\n";
-		send(client_fd, response.c_str(), response.length(), 0);
-	}
-	// handleUser(client_fd, params);
+		handleUser(client_fd, params);
 	else if (cmd == "PING")
-	{
-		std::string response = "PONG ";
-		if (!params.empty()) {
-			response += params[0];
-		}
-		response += "\r\n";
-		send(client_fd, response.c_str(), response.length(), 0);
-		std::cout << "PING reçu, PONG envoyé" << std::endl;
-	}
-	// handlePing(client_fd, params);
+		handlePing(client_fd, params);
 	else if (cmd == "NICK")
-	{
-		if (!params.empty()) {
-			std::string nick = params[0];
-			std::cout << "NICK défini: " << nick << std::endl;
-			// Confirmation au client
-				std::string response = ":server 001 " + nick + " :Welcome to the IRC server\r\n";
-			send(client_fd, response.c_str(), response.length(), 0);
-		}
-	}
-	// handleNick(client_fd, params);
+		handleNick(client_fd, params);
 	else if (cmd == "CAP")
-		std::cout << "CAP command (à implémenter)" << std::endl;
-	// handleCap(client_fd, params);
+		handleCap(client_fd, params);
 	else if (cmd == "INVITE")
-		std::cout << "INVITE command (à implémenter)" << std::endl;
-	// handleInvite(client_fd, params);
+		handleInvite(client_fd, params);
 	else if (cmd == "TOPIC")
-		std::cout << "TOPIC command (à implémenter)" << std::endl;
-	// handleTopic(client_fd, params);
+		handleTopic(client_fd, params);
 	else if (cmd == "JOIN")
-		std::cout << "JOIN command (à implémenter)" << std::endl;
-	// handleJoin(client_fd, params);
+		handleJoin(client_fd, params);
 	else if (cmd == "PRIVMSG")
-		std::cout << "PRIVMSG command (à implémenter)" << std::endl;
-	// handlePrivmsg(client_fd, params);
+		handlePrivmsg(client_fd, params);
 	else if (cmd == "MODE")
-		std::cout << "MODE command (à implémenter)" << std::endl;
-	// handleMode(client_fd, params);
+		handleMode(client_fd, params);
+	else if (cmd == "PASS")
+		handlePass(client_fd, params);
+	else if (cmd == "QUIT")
+		handleQuit(client_fd, params);
 	else
-	{
-		std::cout << "Commande inconnue: " << cmd << std::endl;
-		std::string response = ":server 421 * " + cmd + " :Unknown command\r\n";
-		send(client_fd, response.c_str(), response.length(), 0);
-	}
-	// sendClientError(client_fd, "421", cmd);
+		sendClientError(client_fd, "421", cmd);
+	// {
+	// 	std::cout << "Commande inconnue: " << cmd << std::endl;
+	// 	std::string response = ":" + _server_name + " 421 * " + cmd + " :Unknown command\r\n";
+	// 	send(client_fd, response.c_str(), response.length(), 0);
+	// }
 	(void)client_fd;
 }
+
+void Server::handleKick(int client_fd, std::vector<std::string> params){
+	std::cout << "KICK command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handleUser(int client_fd, std::vector<std::string> params){
+	std::string response = ":" + _server_name + " 002 * :Your host is " + _host_name + "\r\n";
+	send(client_fd, response.c_str(), response.length(), 0);
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handlePing(int client_fd, std::vector<std::string> params){
+	std::string response = "PONG ";
+	if (!params.empty()) {
+		response += params[0];
+	}
+	response += "\r\n";
+	send(client_fd, response.c_str(), response.length(), 0);
+	std::cout << "PONG" << std::endl;
+}
+
+void Server::handleNick(int client_fd, std::vector<std::string> params){
+	if (!params.empty()) {
+		std::string nick = params[0];
+		std::cout << "NICK défini: " << nick << std::endl;
+		// Confirmation au client
+			std::string response = ":" + _server_name + " " + nick + " :Welcome to the IRC server\r\n";
+		send(client_fd, response.c_str(), response.length(), 0);
+	}
+}
+
+void Server::handleCap(int client_fd, std::vector<std::string> params){
+	std::cout << "CAP command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handleInvite(int client_fd, std::vector<std::string> params){
+	std::cout << "INVITE command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handleTopic(int client_fd, std::vector<std::string> params){
+	std::cout << "TOPIC command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handleJoin(int client_fd, std::vector<std::string> params){
+	std::cout << "JOIN command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handlePrivmsg(int client_fd, std::vector<std::string> params){
+	std::cout << "PRIVMSG command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handleMode(int client_fd, std::vector<std::string> params){
+	std::cout << "MODE command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handlePass(int client_fd, std::vector<std::string> params){
+	std::cout << "PASS command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
+void Server::handleQuit(int client_fd, std::vector<std::string> params){
+	std::cout << "QUIT command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)params;
+}
+
 
 void Server::run(){
 	signal(SIGINT, handleSignal);
@@ -310,6 +388,7 @@ Server::Server(int port, std::string password) : _port(port), _password(password
 		bindSocket();
 		listenSocket();
 		initErrorCodes();
+		getHostName();
 		run();
 	}
 	catch (std::exception const &e){
