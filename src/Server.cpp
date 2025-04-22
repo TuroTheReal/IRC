@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/22 16:30:00 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/22 17:18:00 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,6 +95,7 @@ void Server::sendClientError(int client_fd, const std::string& key, const std::s
 
 	std::string errorMsg;
 	std::map<std::string, std::string>::iterator ite = _errorCodes.find(key);
+
 	if (ite != _errorCodes.end())
 		errorMsg = ite->second;
 	else
@@ -142,9 +143,19 @@ void Server::newClient(){
 	// _clients.push_back(new_client);
 }
 
+void safeClose(int& fd)
+{
+	if (fd >= 0)
+	{
+		if (close(fd) == -1)
+			std::cerr << "Error: close on fd " << fd << ": " << strerror(errno) << std::endl;
+		fd = -1;
+	}
+}
+
 void Server::removeClient(size_t index){
 	// int fd = _fds[index].fd;
-	close(_fds[index].fd);
+	safeClose(_fds[index].fd);
 	_fds.erase(_fds.begin() + index);
 
 	// std::vector<Client*>::iterator it = _clients.begin();
@@ -165,14 +176,8 @@ void Server::removeClient(size_t index){
 
 void Server::cleanup(){
 	for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); it++)
-	{
-		if (it->fd >= 0)
-		{
-			close(it->fd);
-			it->fd = -1;
-		}
-	}
-	_fds.clear();
+		safeClose(it->fd);
+	// _fds.clear(); pas sur
 }
 
 void Server::handleClient(size_t index){
@@ -306,7 +311,7 @@ void Server::handleNick(int client_fd, std::vector<std::string> params){
 		std::string nick = params[0];
 		std::cout << "NICK défini: " << nick << std::endl;
 		// Confirmation au client
-			std::string response = ":" + _server_name + " " + nick + " :Welcome to the IRC server\r\n";
+		std::string response = ":" + _server_name + " 001 " + nick + " :Welcome to the IRC server\r\n";
 		send(client_fd, response.c_str(), response.length(), 0);
 	}
 }
