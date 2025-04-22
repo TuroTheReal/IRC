@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/22 14:42:56 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/22 16:30:00 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,11 +16,11 @@
 void Server::createSocket(){
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0)
-		throw std::runtime_error(std::string("Error: socket: ") + std::strerror(errno));
+		throw std::runtime_error(std::string("socket: ") + std::strerror(errno));
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		close(fd);
-		throw std::runtime_error(std::string("Error: fcntl: ") + std::strerror(errno));
+		throw std::runtime_error(std::string("fcntl: ") + std::strerror(errno));
 	}
 	_server_socket = fd;
 }
@@ -33,12 +33,12 @@ void Server::bindSocket(){
 	addr.sin_port = htons(_port);
 
 	if (bind(_server_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-	throw std::runtime_error(std::string("Error: bind: ") + std::strerror(errno));
+		throw std::runtime_error(std::string("bind: ") + std::strerror(errno));
 }
 
 void Server::listenSocket(){
 	if (listen(_server_socket, 5) < 0) {
-		throw std::runtime_error(std::string("Error: listen: ") + std::strerror(errno));
+		throw std::runtime_error(std::string("listen: ") + std::strerror(errno));
 	}
 }
 
@@ -74,7 +74,7 @@ void  Server::initErrorCodes(){
 void	Server::getHostName(){
 	char hostname[1024];
 	if (gethostname(hostname, sizeof(hostname)) == -1){
-        std::cerr << "Error: gethostname: " << strerror(errno) << std::endl;
+		std::cerr << "Error: gethostname: " << strerror(errno) << std::endl;
 		_host_name = "localhost";
 	}
 	_host_name = std::string(hostname);
@@ -109,7 +109,8 @@ void Server::sendClientError(int client_fd, const std::string& key, const std::s
 
 	ssize_t sent = send(client_fd, to_send.c_str(), to_send.length(), 0);
 	if (sent < 0)
-		throw std::runtime_error(std::string("Error: send: ") + std::strerror(errno));
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+	std::cerr << "Error: client fd " << client_fd << ": " << to_send << std::endl;
 }
 
 void Server::newClient(){
@@ -121,13 +122,13 @@ void Server::newClient(){
 	int client_fd = accept(_server_socket, (struct sockaddr*)&client_addr, &addr_len);
 	if (client_fd < 0){
 		if (errno != EAGAIN && errno != EWOULDBLOCK)
-			throw std::runtime_error(std::string("Error: accept: ") + std::strerror(errno));
+			throw std::runtime_error(std::string("accept: ") + std::strerror(errno));
 	}
 
 	if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(client_fd);
-			throw std::runtime_error(std::string("Error: fcntl: ") + std::strerror(errno));
+			throw std::runtime_error(std::string("fcntl: ") + std::strerror(errno));
 	}
 
 	struct pollfd client;
@@ -162,6 +163,18 @@ void Server::removeClient(size_t index){
 	std::cout << "Client disconnected from remove" << std::endl;
 }
 
+void Server::cleanup(){
+	for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); it++)
+	{
+		if (it->fd >= 0)
+		{
+			close(it->fd);
+			it->fd = -1;
+		}
+	}
+	_fds.clear();
+}
+
 void Server::handleClient(size_t index){
 	int client_fd = _fds[index].fd;
 	char buffer[1024];
@@ -173,20 +186,19 @@ void Server::handleClient(size_t index){
 		if (bytes_read == 0)
 			std::cout << "Client disconnected from handle" << std::endl;
 		else
-			throw std::runtime_error(std::string("Error: recv: ") + std::strerror(errno));
+			throw std::runtime_error(std::string("recv: ") + std::strerror(errno));
 		removeClient(index);
 		return ;
 	}
 	buffer[bytes_read] = '\0';
 	std::cout << "Données brutes reçues: [" << buffer << "]" << std::endl;
 	_clientBuffers[client_fd] += std::string(buffer);
-
 	processClientBuffer(client_fd);
 }
 
 void Server::processClientBuffer(int client_fd){
 	if (_clientBuffers.find(client_fd) == _clientBuffers.end())
-	throw std::runtime_error(std::string("Error: client not found"));
+		throw std::runtime_error(std::string("client not found"));
 
 	std::string& buffer = _clientBuffers[client_fd];
 	std::cout << "Données dans buffer client: [" << buffer << "]" << std::endl;
@@ -222,6 +234,8 @@ void Server::parseCommand(std::string msg, int client_fd){
 			std::string start = token.substr(1);
 			std::string rest;
 			getline(iss, rest);
+			if ((start + rest).empty())
+				break;
 			params.push_back(start + rest);
 			break;
 		}
@@ -301,8 +315,6 @@ void Server::handleCap(int client_fd, std::vector<std::string> params){
 	std::cout << "CAP command (à implémenter)" << std::endl;
 	(void)client_fd;
 	(void)params;
-	(void)client_fd;
-	(void)params;
 }
 
 void Server::handleInvite(int client_fd, std::vector<std::string> params){
@@ -347,7 +359,6 @@ void Server::handleQuit(int client_fd, std::vector<std::string> params){
 	(void)params;
 }
 
-
 void Server::run(){
 	signal(SIGINT, handleSignal);
 	signal(SIGTERM, handleSignal);
@@ -361,7 +372,7 @@ void Server::run(){
 	{
 		if (poll(_fds.data(), _fds.size(), -1) < 0){
 			if (errno == EINTR) continue;
-				throw std::runtime_error(std::string("Error: poll: ") + std::strerror(errno));
+				throw std::runtime_error(std::string("poll: ") + std::strerror(errno));
 		}
 		for (size_t i = 0; i < _fds.size(); i++)
 		{
@@ -378,7 +389,7 @@ void Server::run(){
 			}
 		}
 	}
-	// cleanup();
+	cleanup();
 }
 
 Server::Server(int port, std::string password) : _port(port), _password(password), _server_name("IRC"){
@@ -392,7 +403,6 @@ Server::Server(int port, std::string password) : _port(port), _password(password
 		run();
 	}
 	catch (std::exception const &e){
-		std::cerr << e.what() << std::endl;
-		exit(EXIT_FAILURE);
+		throw;
 	}
 }

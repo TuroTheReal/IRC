@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 12:37:46 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/17 14:02:25 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/22 16:28:11 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,19 +24,26 @@ bool isValid(const char *str){
 
 int main(int ac, char **av)
 {
-	if (ac != 3)
-		return std::cerr << "Usage: ./ircserv <port> <password>" << std::endl, 1;
+	try {
+		if (ac != 3)
+			throw std::runtime_error("Usage: ./ircserv <port> <password>");
 
-	if (!isValid(av[1]))
-		return std::cerr << "Error: Wrong port: " << av[1] << std::endl, 1;
+		if (!isValid(av[1]))
+			throw std::runtime_error("Wrong port: " + std::string(av[1]));
 
-	int port = atoi(av[1]);
-	if (port <= 0 || port > 65535)
-		return std::cerr << "Error: Cannot use this port" << std::endl, 1;
+		int port = atoi(av[1]);
+		if (port <= 0 || port > 65535)
+			throw std::runtime_error("Cannot use this port");
 
-	std::string password = av[2];
-	if (password.empty())
-		return std::cerr << "Error : no password" << std::endl, 1;
-	Server IRC(port, password);
+		std::string password = av[2];
+		if (password.empty())
+			throw std::runtime_error("No password");
+
+		Server IRC(port, password);
+	}
+	catch (std::exception &e){
+		std::cerr << "Error: " << e.what() << std::endl;
+		return (EXIT_FAILURE);
+	}
 	return (0);
 }

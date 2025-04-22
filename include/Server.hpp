@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/22 14:28:46 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/22 15:59:58 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,11 @@ class Server {
 		void	getHostName();
 		void	newClient();
 		void	handleClient(size_t index);
+		void	removeClient(size_t index);
+		void	cleanup();
+		void	parseCommand(std::string, int client_fd);
+		void	processClientBuffer(int client_fd);
+		void	sendClientError(int client_fd, const std::string& key, const std::string& cmd);
 
 		void	handleJoin(int, std::vector<std::string>);
 		void	handleInvite(int, std::vector<std::string>);
@@ -66,11 +71,6 @@ class Server {
 		void	handlePing(int, std::vector<std::string>);
 		void	handleQuit(int, std::vector<std::string>);
 
-		void	removeClient(size_t index);
-		void	parseCommand(std::string, int client_fd);
-		void	processClientBuffer(int client_fd);
-		void	sendClientError(int client_fd, const std::string& key, const std::string& cmd);
-		// void cleanup(); // shutdowm ou SIGINT/SIGTERM == fin boucle + cleanup ?
 		std::vector<Client*>		_clients;
 		// std::vector<Channels*>	_channels;
 };
