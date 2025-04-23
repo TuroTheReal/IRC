@@ -6,7 +6,7 @@
 #    By: artberna <artberna@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/11/14 14:31:28 by dsindres          #+#    #+#              #
-#    Updated: 2025/04/17 14:08:23 by artberna         ###   ########.fr        #
+#    Updated: 2025/04/23 13:15:45 by artberna         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -21,17 +21,17 @@ OBJ_DIR  := obj
 SRC      := \
 	$(SRC_DIR)/main.cpp \
 	$(SRC_DIR)/Server.cpp \
-	# $(SRC_DIR)/Client.cpp \
-	# $(SRC_DIR)/Command.cpp \
-	# $(SRC_DIR)/Channel.cpp \
+	$(SRC_DIR)/Client.cpp \
+	$(SRC_DIR)/Command.cpp \
+	$(SRC_DIR)/Channel.cpp \
 	# $(SRC_DIR)/Utils.cpp
 
 OBJ      := \
 	$(OBJ_DIR)/main.o \
 	$(OBJ_DIR)/Server.o \
-	# $(OBJ_DIR)/Client.o \
-	# $(OBJ_DIR)/Command.o \
-	# $(OBJ_DIR)/Channel.o \
+	$(OBJ_DIR)/Client.o \
+	$(OBJ_DIR)/Command.o \
+	$(OBJ_DIR)/Channel.o \
 	# $(OBJ_DIR)/Utils.o
 
 # Rules

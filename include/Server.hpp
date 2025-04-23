@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/22 15:59:58 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/23 12:09:55 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,10 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <cerrno>
+
 #include "Client.hpp"
+#include "Channel.hpp"
+#include "Command.hpp"
 
 class Server {
 	public:
@@ -58,19 +61,21 @@ class Server {
 		void	processClientBuffer(int client_fd);
 		void	sendClientError(int client_fd, const std::string& key, const std::string& cmd);
 
-		void	handleJoin(int, std::vector<std::string>);
-		void	handleInvite(int, std::vector<std::string>);
-		void	handlePrivmsg(int, std::vector<std::string>);
-		void	handleKick(int, std::vector<std::string>);
-		void	handlePass(int, std::vector<std::string>);
-		void	handleNick(int, std::vector<std::string>);
-		void	handleMode(int, std::vector<std::string>);
-		void	handleCap(int, std::vector<std::string>);
-		void	handleUser(int, std::vector<std::string>);
-		void	handleTopic(int, std::vector<std::string>);
-		void	handlePing(int, std::vector<std::string>);
-		void	handleQuit(int, std::vector<std::string>);
+		void	handleJoin(int, std::vector<std::string>, Client*);
+		void	handleInvite(int, std::vector<std::string>, Client*);
+		void	handlePrivmsg(int, std::vector<std::string>, Client*);
+		void	handleKick(int, std::vector<std::string>, Client*);
+		void	handlePass(int, std::vector<std::string>, Client*);
+		void	handleNick(int, std::vector<std::string>, Client*);
+		void	handleMode(int, std::vector<std::string>, Client*);
+		void	handleCap(int, std::vector<std::string>, Client*);
+		void	handleUser(int, std::vector<std::string>, Client*);
+		void	handleTopic(int, std::vector<std::string>, Client*);
+		void	handlePing(int, std::vector<std::string>, Client*);
+		void	handleQuit(int, std::vector<std::string>, Client*);
 
+		Client*	getClientByFD(int);
+		void	display_all();
 		std::vector<Client*>		_clients;
-		// std::vector<Channels*>	_channels;
+		std::vector<Channel*>		_channels;
 };

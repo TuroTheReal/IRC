@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/22 17:18:00 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/23 13:23:29 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,6 +59,7 @@ void  Server::initErrorCodes(){
 	_errorCodes["441"] = ": They aren't on that channel";
 	_errorCodes["442"] = ": You're not on that channel";
 	_errorCodes["461"] = ": Not enough parameters";
+	_errorCodes["462"] = ": Too many arguments";
 	_errorCodes["472"] = ": Unknown mode char";
 	_errorCodes["473"] = ": Cannot join channel (+i)";
 	_errorCodes["474"] = ": Cannot join channel (+b)";
@@ -78,20 +79,22 @@ void	Server::getHostName(){
 		_host_name = "localhost";
 	}
 	_host_name = std::string(hostname);
-	std::cout << "HN = " << _host_name << std::endl;
 }
 
 void Server::sendClientError(int client_fd, const std::string& key, const std::string& cmd){
-	// std::vector<Client *>::iterator it = _clients.begin();
-	std::string nickname = "*";
+	std::vector<Client *>::iterator it = _clients.begin();
+	std::string nickname;
 
-	// for (; it != _clients.end(); it++)
-	// {
-	// 	if (client_fd == (*it)->get_socket())
-	// 		nickname = (*it)->get_nickname();
-	// 	else
-	// 		nickname = "*";
-	// }
+	for (; it != _clients.end(); it++)
+	{
+		if (client_fd == (*it)->get_socket())
+			nickname = (*it)->get_nickname();
+		else
+			nickname = "*";
+	}
+
+	if (nickname == "default")
+		nickname = "*";
 
 	std::string errorMsg;
 	std::map<std::string, std::string>::iterator ite = _errorCodes.find(key);
@@ -139,8 +142,8 @@ void Server::newClient(){
 
 	_fds.push_back(client);
 
-	// Client* new_client = new Client(client_fd);
-	// _clients.push_back(new_client);
+	Client* new_client = new Client(client_fd);
+	_clients.push_back(new_client);
 }
 
 void safeClose(int& fd)
@@ -154,22 +157,22 @@ void safeClose(int& fd)
 }
 
 void Server::removeClient(size_t index){
-	// int fd = _fds[index].fd;
+	int fd = _fds[index].fd;
 	safeClose(_fds[index].fd);
 	_fds.erase(_fds.begin() + index);
 
-	// std::vector<Client*>::iterator it = _clients.begin();
-	// std::vector<Client*>::iterator ite = _clients.end();
+	std::vector<Client*>::iterator it = _clients.begin();
+	std::vector<Client*>::iterator ite = _clients.end();
 
-	// for (; it != ite; it++)
-	// {
-	// 	if ((*it)->get_socket() == fd)
-	// 	{
-	// 		delete *it;
-	// 		_clients.erase(it);
-	// 		break;
-	// 	}
-	// }
+	for (; it != ite; it++)
+	{
+		if ((*it)->get_socket() == fd)
+		{
+			delete *it;
+			_clients.erase(it);
+			break;
+		}
+	}
 	// clean data dans les differentes classes : _client.erase(_fds[index].fd) || _client.erase(_fds[index])
 	std::cout << "Client disconnected from remove" << std::endl;
 }
@@ -177,7 +180,8 @@ void Server::removeClient(size_t index){
 void Server::cleanup(){
 	for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); it++)
 		safeClose(it->fd);
-	// _fds.clear(); pas sur
+	// _fds.clear(); // pas sur
+	// delete [] _clients; //free client
 }
 
 void Server::handleClient(size_t index){
@@ -232,6 +236,7 @@ void Server::parseCommand(std::string msg, int client_fd){
 	iss >> cmd;
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
+	params.push_back(cmd);
 	std::string token;
 	while (iss >> token)
 	{
@@ -249,54 +254,77 @@ void Server::parseCommand(std::string msg, int client_fd){
 
 	std::cout << "CMD == [" << cmd << "]" << std::endl;
 
-	if (cmd == "KICK")
-		handleKick(client_fd, params);
-	else if (cmd == "USER")
-		handleUser(client_fd, params);
+	Client* client = getClientByFD(client_fd);
+	if (!client)
+		throw std::runtime_error(std::string("client not found"));
+
+	// display_all();
+	if (cmd == "KICK") // 3 ou 4
+		handleKick(client_fd, params, client);
+	else if (cmd == "USER") // 5
+		handleUser(client_fd, params, client);
 	else if (cmd == "PING")
-		handlePing(client_fd, params);
-	else if (cmd == "NICK")
-		handleNick(client_fd, params);
+		handlePing(client_fd, params, client);
+	else if (cmd == "NICK") // 2
+		handleNick(client_fd, params, client);
 	else if (cmd == "CAP")
-		handleCap(client_fd, params);
-	else if (cmd == "INVITE")
-		handleInvite(client_fd, params);
-	else if (cmd == "TOPIC")
-		handleTopic(client_fd, params);
-	else if (cmd == "JOIN")
-		handleJoin(client_fd, params);
-	else if (cmd == "PRIVMSG")
-		handlePrivmsg(client_fd, params);
-	else if (cmd == "MODE")
-		handleMode(client_fd, params);
-	else if (cmd == "PASS")
-		handlePass(client_fd, params);
-	else if (cmd == "QUIT")
-		handleQuit(client_fd, params);
+		handleCap(client_fd, params, client);
+	else if (cmd == "INVITE") // 3
+		handleInvite(client_fd, params, client);
+	else if (cmd == "TOPIC") // 2 ou 3
+		handleTopic(client_fd, params, client);
+	else if (cmd == "JOIN") // 2 ou 3
+		handleJoin(client_fd, params, client);
+	else if (cmd == "PRIVMSG") // 3
+		handlePrivmsg(client_fd, params, client);
+	else if (cmd == "MODE") // entre 3 et 5
+		handleMode(client_fd, params, client);
+	else if (cmd == "PASS") // 2
+		handlePass(client_fd, params, client);
+	else if (cmd == "QUIT") // 1 ou 2
+		handleQuit(client_fd, params, client);
 	else
 		sendClientError(client_fd, "421", cmd);
-	// {
-	// 	std::cout << "Commande inconnue: " << cmd << std::endl;
-	// 	std::string response = ":" + _server_name + " 421 * " + cmd + " :Unknown command\r\n";
-	// 	send(client_fd, response.c_str(), response.length(), 0);
-	// }
 	(void)client_fd;
+	// display_all();
 }
 
-void Server::handleKick(int client_fd, std::vector<std::string> params){
+Client* Server::getClientByFD(int client_fd){
+	std::vector<Client*>::iterator it = _clients.begin();
+
+	for (; it != _clients.end(); it++){
+		if ((*it)->get_socket() == client_fd)
+			return *it;
+	}
+	return NULL;
+}
+
+void Server::handleKick(int client_fd, std::vector<std::string> params, Client* client){
 	std::cout << "KICK command (à implémenter)" << std::endl;
 	(void)client_fd;
+	(void)client;
 	(void)params;
 }
 
-void Server::handleUser(int client_fd, std::vector<std::string> params){
-	std::string response = ":" + _server_name + " 002 * :Your host is " + _host_name + "\r\n";
-	send(client_fd, response.c_str(), response.length(), 0);
+void Server::handleUser(int client_fd, std::vector<std::string> params, Client* client){
+	// std::string response = ":" + _server_name + " 002 * :Your host is " + _host_name + "\r\n";
+	// send(client_fd, response.c_str(), response.length(), 0);
+	// (void)client_fd;
+	// (void)client;
+	// (void)params;
+	if (params.size() != 5)
+		sendClientError(client_fd, "461", params[0]);
+
+	std::vector<std::string>::iterator it = params.begin();
+	for (; it != params.end(); it++)
+		std::cout << *it << "\n";
+	int res = client->execute_command(params, _clients, _channels);
+	std::cout << res << std::endl;
+	std::cout << "USER = " << client->get_username() << std::endl;
 	(void)client_fd;
-	(void)params;
 }
 
-void Server::handlePing(int client_fd, std::vector<std::string> params){
+void Server::handlePing(int client_fd, std::vector<std::string> params, Client* client){
 	std::string response = "PONG ";
 	if (!params.empty()) {
 		response += params[0];
@@ -304,63 +332,94 @@ void Server::handlePing(int client_fd, std::vector<std::string> params){
 	response += "\r\n";
 	send(client_fd, response.c_str(), response.length(), 0);
 	std::cout << "PONG" << std::endl;
+	(void)client;
 }
 
-void Server::handleNick(int client_fd, std::vector<std::string> params){
-	if (!params.empty()) {
-		std::string nick = params[0];
-		std::cout << "NICK défini: " << nick << std::endl;
-		// Confirmation au client
-		std::string response = ":" + _server_name + " 001 " + nick + " :Welcome to the IRC server\r\n";
-		send(client_fd, response.c_str(), response.length(), 0);
+void Server::handleNick(int client_fd, std::vector<std::string> params, Client* client){
+	if (params.size() != 2)
+	{
+		if (params.size() < 2)
+			sendClientError(client_fd, "431", params[0]);
+		if (params.size() > 2)
+			sendClientError(client_fd, "462", params[0]);
+	}
+
+	std::string nick = params[1];
+	std::cout << "NICK défini: " << nick << std::endl;
+	// Confirmation au client
+	std::string response = ":" + _server_name + " 001 " + nick + " :Welcome to the IRC server\r\n";
+	send(client_fd, response.c_str(), response.length(), 0);
+	(void)client;
+}
+
+void Server::handleCap(int client_fd, std::vector<std::string> params, Client* client){
+	std::cout << "CAP command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)client;
+	(void)params;
+}
+
+void Server::handleInvite(int client_fd, std::vector<std::string> params, Client* client){
+	std::cout << "INVITE command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)client;
+	(void)params;
+}
+
+void Server::handleTopic(int client_fd, std::vector<std::string> params, Client* client){
+	std::cout << "TOPIC command (à implémenter)" << std::endl;
+	(void)client_fd;
+	(void)client;
+	(void)params;
+}
+
+void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* client){
+	std::cout << "JOIN command (en cours)" << std::endl;
+	(void)client_fd;
+	(void)client;
+	(void)params;
+	int res = client->execute_command(params, _clients, _channels);
+	if (res == 11)
+	{
+	    std::string new_channel_name = params[1];
+	    new_channel_name.erase(0,1);
+	    Channel* new_channel = new Channel(new_channel_name, client);
+	    client->set_operator(true);
+	    client->add_channel_operator(new_channel);
+	    this->_channels.push_back(new_channel);
+	    int res2 = client->execute_command(params, _clients, _channels);
+		// if (res2 != 0)
+		// 	sendClientError();
+		(void)res2;
 	}
 }
 
-void Server::handleCap(int client_fd, std::vector<std::string> params){
-	std::cout << "CAP command (à implémenter)" << std::endl;
-	(void)client_fd;
-	(void)params;
-}
-
-void Server::handleInvite(int client_fd, std::vector<std::string> params){
-	std::cout << "INVITE command (à implémenter)" << std::endl;
-	(void)client_fd;
-	(void)params;
-}
-
-void Server::handleTopic(int client_fd, std::vector<std::string> params){
-	std::cout << "TOPIC command (à implémenter)" << std::endl;
-	(void)client_fd;
-	(void)params;
-}
-
-void Server::handleJoin(int client_fd, std::vector<std::string> params){
-	std::cout << "JOIN command (à implémenter)" << std::endl;
-	(void)client_fd;
-	(void)params;
-}
-
-void Server::handlePrivmsg(int client_fd, std::vector<std::string> params){
+void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Client* client){
 	std::cout << "PRIVMSG command (à implémenter)" << std::endl;
 	(void)client_fd;
+	(void)client;
 	(void)params;
+
 }
 
-void Server::handleMode(int client_fd, std::vector<std::string> params){
+void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
 	std::cout << "MODE command (à implémenter)" << std::endl;
 	(void)client_fd;
+	(void)client;
 	(void)params;
 }
 
-void Server::handlePass(int client_fd, std::vector<std::string> params){
+void Server::handlePass(int client_fd, std::vector<std::string> params, Client* client){
 	std::cout << "PASS command (à implémenter)" << std::endl;
 	(void)client_fd;
+	(void)client;
 	(void)params;
 }
 
-void Server::handleQuit(int client_fd, std::vector<std::string> params){
+void Server::handleQuit(int client_fd, std::vector<std::string> params, Client* client){
 	std::cout << "QUIT command (à implémenter)" << std::endl;
 	(void)client_fd;
+	(void)client;
 	(void)params;
 }
 
@@ -409,5 +468,17 @@ Server::Server(int port, std::string password) : _port(port), _password(password
 	}
 	catch (std::exception const &e){
 		throw;
+	}
+}
+
+
+void Server::display_all()
+{
+	std::vector<Channel*>::iterator it = _channels.begin();
+	while(it != _channels.end())
+	{
+		Client *ope = (*it)->get_operator();
+		std::cout << (*it)->get_name() << " : " << ope->get_nickname() << std::endl;
+		it++;
 	}
 }
