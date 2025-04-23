@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 14:22:43 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/23 15:16:42 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,6 +63,7 @@ bool Server::isValidChannel(std::string chan){
 }
 
 void  Server::initErrorCodes(){
+	_errorCodes["1"] = ": ERREUR A REVOIR";
 	_errorCodes["401"] = ": No such nick/channel";
 	_errorCodes["403"] = ": No such channel";
 	_errorCodes["421"] = ": Unknown command";
@@ -195,6 +196,7 @@ void Server::cleanup(){
 		safeClose(it->fd);
 	// _fds.clear(); // pas sur
 	// delete [] _clients; //free client
+	// delete [] _channels; //free channels
 }
 
 void Server::handleClient(size_t index){
@@ -271,8 +273,6 @@ void Server::parseCommand(std::string msg, int client_fd){
 	if (!client)
 		throw std::runtime_error(std::string("client not found"));
 
-	display_all_clients();
-	display_all_channels();
 	if (cmd == "KICK") // 3 ou 4
 		handleKick(client_fd, params, client);
 	else if (cmd == "USER") // 5
@@ -300,7 +300,6 @@ void Server::parseCommand(std::string msg, int client_fd){
 	else
 		sendClientError(client_fd, "421", cmd);
 	(void)client_fd;
-	// display_all();
 }
 
 Client* Server::getClientByFD(int client_fd){
@@ -314,10 +313,21 @@ Client* Server::getClientByFD(int client_fd){
 }
 
 void Server::handleKick(int client_fd, std::vector<std::string> params, Client* client){
-	std::cout << "KICK command (à implémenter)" << std::endl;
-	(void)client_fd;
-	(void)client;
-	(void)params;
+	if (params.size() < 3 || params.size() > 4 ){
+		if (params.size() < 3)
+			sendClientError(client_fd, "431", params[0]); // erreur a check
+		if (params.size() > 4)
+			sendClientError(client_fd, "462", params[0]);// erreur a check
+		return;
+	}
+
+	int res = client->execute_command(params, _clients, _channels);// erreur a check
+	if (res != 0 && res != 11)
+	{
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+	}
 }
 
 void Server::handleUser(int client_fd, std::vector<std::string> params, Client* client){
@@ -326,11 +336,18 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 	// (void)client_fd;
 	// (void)client;
 	// (void)params;
-	if (params.size() != 5)
-		sendClientError(client_fd, "461", params[0]);
+	if (params.size() != 5){
+		sendClientError(client_fd, "461", params[0]); // erreur a check
+		return;
+	}
 
 	int res = client->execute_command(params, _clients, _channels);
-	(void)res;
+	if (res != 0 && res != 11)
+	{
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+	}
 }
 
 void Server::handlePing(int client_fd, std::vector<std::string> params, Client* client){
@@ -345,20 +362,28 @@ void Server::handlePing(int client_fd, std::vector<std::string> params, Client* 
 }
 
 void Server::handleNick(int client_fd, std::vector<std::string> params, Client* client){
-	if (params.size() != 2)
-	{
+	if (params.size() != 2){
 		if (params.size() < 2)
-			sendClientError(client_fd, "431", params[0]);
+			sendClientError(client_fd, "431", params[0]); // erreur a check
 		if (params.size() > 2)
-			sendClientError(client_fd, "462", params[0]);
+			sendClientError(client_fd, "462", params[0]); // erreur a check
+		return ;
 	}
 
-	std::string nick = params[1];
-	std::cout << "NICK défini: " << nick << std::endl;
+	int res = client->execute_command(params, _clients, _channels);
+	if (res != 0 && res != 11)
+	{
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+	}
+
+	// std::string nick = params[1];
+	// std::cout << "NICK défini: " << nick << std::endl;
 	// Confirmation au client
-	std::string response = ":" + _server_name + " 001 " + nick + " :Welcome to the IRC server\r\n";
-	send(client_fd, response.c_str(), response.length(), 0);
-	(void)client;
+	// std::string response = ":" + _server_name + " 001 " + nick + " :Welcome to the IRC server\r\n";
+	// send(client_fd, response.c_str(), response.length(), 0);
+	// (void)client;
 }
 
 void Server::handleCap(int client_fd, std::vector<std::string> params, Client* client){
@@ -383,18 +408,21 @@ void Server::handleTopic(int client_fd, std::vector<std::string> params, Client*
 }
 
 void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* client){
-	std::cout << "JOIN command (en cours)" << std::endl;
-	(void)client_fd;
-	(void)client;
-	(void)params;
 
-	if (params.size() < 2 && params.size() > 3)
-		sendClientError(client_fd, "461", params[0]);
-	if (!isValidChannel(params[1]))
-		sendClientError(client_fd, "476", params[1]);
+	display_all_clients();
+	display_all_channels();
+
+	if (params.size() < 2 && params.size() > 3){
+		sendClientError(client_fd, "461", params[0]); // erreur a check
+		return;
+	}
+	if (!isValidChannel(params[1])){
+		sendClientError(client_fd, "476", params[1]); // erreur a check
+		return;
+	}
+
 	int res = client->execute_command(params, _clients, _channels);
-	if (res == 11)
-	{
+	if (res == 11){
 		std::string new_channel_name = params[1];
 		new_channel_name.erase(0,1);
 		Channel* new_channel = new Channel(new_channel_name, client);
@@ -406,19 +434,29 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 		// 	sendClientError();
 		(void)res2;
 	}
+	else if (res != 0 && res != 11)
+	{
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+	}
+
 	display_all_clients();
 	display_all_channels();
 }
 
 void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Client* client){
-	if (params.size() == 3)
-	{
-		int res = client->execute_command(params, _clients, _channels);
-		(void)res;
-	}
-	else
+	if (params.size() != 3){
 		sendClientError(client_fd, "461", params[0]); // ereur a check
-}
+		return;
+	}
+	int res = client->execute_command(params, _clients, _channels);// ereur a check
+	if (res != 0 && res != 11)
+	{
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+	}}
 
 void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
 	std::cout << "MODE command (à implémenter)" << std::endl;

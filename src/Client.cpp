@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
+/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 13:12:33 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 13:06:09 by dsindres         ###   ########.fr       */
+/*   Updated: 2025/04/23 15:16:28 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,7 @@
 
 Client::Client(){};
 
-Client::Client(int socket) 
+Client::Client(int socket)
 {
     this->_socket = socket;
     this->_nickname = "default";
@@ -241,7 +241,16 @@ void    Client::leave_channel(std::string channel_name, std::vector<Channel*> &c
         }
         it++;
     }
-    this->_channels.erase(it);
+    std::vector<Channel*>::iterator ite = this->_channels.begin();
+    while(ite != _channels.end())
+    {
+        if ((*ite)->get_name() == channel_name)
+        {
+            this->_channels.erase(ite);
+            break ;
+        }
+        ite++;
+    }
     std::cout << "Client " << this->_nickname << " has left " << channel_name << " channel." << std::endl;
     return ;
 }
@@ -258,7 +267,7 @@ void    Client::leave_channel_from_dest_channel(Channel *channel)
         }
         it++;
     }
-    // OU juste 
+    // OU juste
     //this->_channels.erase(channel);
 }
 
@@ -280,7 +289,7 @@ void    Client::receive_message(std::string const &message)
     ssize_t bytes_sent = send(this->_socket, msg.c_str(), msg.length(), 0);
     if (bytes_sent < 0)
         std::cerr << "Error : " << this->_nickname << " doesn't send the message" << std::endl;
-        
+
 }
 
 int Client::execute_command(std::vector<std::string> input, std::vector<Client*> clients, std::vector<Channel*>channels)
@@ -396,7 +405,7 @@ void Client::get_invitation()
 
 // void Server::display_all_channel()
 // {
-//     std::vector<Channel*>::iterator it = _channels.begin();        
+//     std::vector<Channel*>::iterator it = _channels.begin();
 //     std::cout << std::endl;
 //     while(it != _channel.end())
 //     {

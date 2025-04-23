@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Command.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
+/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/17 13:07:04 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/22 15:26:23 by dsindres         ###   ########.fr       */
+/*   Updated: 2025/04/23 15:04:47 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,7 +50,7 @@ int Command::kick(std::vector<std::string> input, std::vector<Client*> clients, 
         }
         it++;
     }
-    return (1); 
+    return (1);
 }
 
 
@@ -86,7 +86,7 @@ int Command::send_message(std::vector<std::string> input, std::vector<Client*> c
                     std::cerr << "Error : " << (*it)->get_nickname() << " doesn't receive the message" << std::endl;
                     return (1);
                 }
-                return (0); 
+                return (0);
             }
             it++;
         }
