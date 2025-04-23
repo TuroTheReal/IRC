@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 13:23:29 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/23 14:09:16 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,6 +47,19 @@ volatile sig_atomic_t _isON = 1;
 void handleSignal(int signum){
 	(void)signum;
 	_isON = 0;
+}
+
+bool Server::isValidChannel(std::string chan){
+	const std::string not_in_first = "!#&+";
+	const std::string not_inside = " ,:\x07";
+	if (not_in_first.find(chan[0]) == std::string::npos)
+		return false;
+	if (chan.size() > 50)
+		return false;
+	for (size_t i = 1; i < chan.size(); i++)
+		if (not_inside.find(chan[i]) != std::string::npos)
+			return 0;
+	return true;
 }
 
 void  Server::initErrorCodes(){
@@ -258,7 +271,8 @@ void Server::parseCommand(std::string msg, int client_fd){
 	if (!client)
 		throw std::runtime_error(std::string("client not found"));
 
-	// display_all();
+	display_all_clients();
+	display_all_channels();
 	if (cmd == "KICK") // 3 ou 4
 		handleKick(client_fd, params, client);
 	else if (cmd == "USER") // 5
@@ -378,20 +392,27 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 	(void)client_fd;
 	(void)client;
 	(void)params;
+
+	if (params.size() < 2 && params.size() > 3)
+		sendClientError(client_fd, "461", params[0]);
+	if (!isValidChannel(params[1]))
+		sendClientError(client_fd, "476", params[1]);
 	int res = client->execute_command(params, _clients, _channels);
 	if (res == 11)
 	{
-	    std::string new_channel_name = params[1];
-	    new_channel_name.erase(0,1);
-	    Channel* new_channel = new Channel(new_channel_name, client);
-	    client->set_operator(true);
-	    client->add_channel_operator(new_channel);
-	    this->_channels.push_back(new_channel);
-	    int res2 = client->execute_command(params, _clients, _channels);
+		std::string new_channel_name = params[1];
+		new_channel_name.erase(0,1);
+		Channel* new_channel = new Channel(new_channel_name, client);
+		client->set_operator(true);
+		client->add_channel_operator(new_channel);
+		this->_channels.push_back(new_channel);
+		int res2 = client->execute_command(params, _clients, _channels);
 		// if (res2 != 0)
 		// 	sendClientError();
 		(void)res2;
 	}
+	display_all_clients();
+	display_all_channels();
 }
 
 void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Client* client){
@@ -471,14 +492,35 @@ Server::Server(int port, std::string password) : _port(port), _password(password
 	}
 }
 
-
-void Server::display_all()
+void Server::display_all_channels()
 {
-	std::vector<Channel*>::iterator it = _channels.begin();
-	while(it != _channels.end())
-	{
-		Client *ope = (*it)->get_operator();
-		std::cout << (*it)->get_name() << " : " << ope->get_nickname() << std::endl;
-		it++;
-	}
+    std::vector<Channel*>::iterator it = _channels.begin();
+    std::cout << std::endl;
+    while(it != _channels.end())
+    {
+        Client *ope = (*it)->get_operator();
+        std::cout << "  Channel : " << (*it)->get_name() << std::endl;
+        std::cout << "   operator --> " << ope->get_username() << std::endl;
+        (*it)->get_all_clients();
+        std::cout << std::endl;
+        it++;
+    }
+    std::cout << "  -------- end of channels ----------" << std::endl << std::endl;
+}
+
+
+void Server::display_all_clients()
+{
+    std::vector<Client*>::iterator ite = _clients.begin();
+    std::cout << std::endl;
+    while(ite != _clients.end())
+    {
+        std::cout << "  Client : " << (*ite)->get_username() << std::endl;
+        (*ite)->get_operator();
+        (*ite)->get_channel();
+        (*ite)->get_invitation();
+        std::cout << std::endl;
+        ite++;
+    }
+    std::cout << "  -------- end of clients ----------" << std::endl << std::endl;
 }

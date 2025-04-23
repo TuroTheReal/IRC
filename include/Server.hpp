@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 12:09:55 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/23 13:53:03 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,15 +51,18 @@ class Server {
 		void	bindSocket();
 		void	listenSocket();
 		void	run();
+
 		void	initErrorCodes();
 		void	getHostName();
+		void	sendClientError(int client_fd, const std::string& key, const std::string& cmd);
+
 		void	newClient();
 		void	handleClient(size_t index);
 		void	removeClient(size_t index);
 		void	cleanup();
+
 		void	parseCommand(std::string, int client_fd);
 		void	processClientBuffer(int client_fd);
-		void	sendClientError(int client_fd, const std::string& key, const std::string& cmd);
 
 		void	handleJoin(int, std::vector<std::string>, Client*);
 		void	handleInvite(int, std::vector<std::string>, Client*);
@@ -75,7 +78,11 @@ class Server {
 		void	handleQuit(int, std::vector<std::string>, Client*);
 
 		Client*	getClientByFD(int);
-		void	display_all();
+		bool	isValidChannel(std::string chan);
+
+		//debug
+		void	display_all_clients();
+		void	display_all_channels();
 		std::vector<Client*>		_clients;
 		std::vector<Channel*>		_channels;
 };
