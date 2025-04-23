@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
+/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 13:12:33 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 13:27:06 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/23 13:06:09 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,7 @@
 
 Client::Client(){};
 
-Client::Client(int socket)
+Client::Client(int socket) 
 {
     this->_socket = socket;
     this->_nickname = "default";
@@ -258,7 +258,7 @@ void    Client::leave_channel_from_dest_channel(Channel *channel)
         }
         it++;
     }
-    // OU juste
+    // OU juste 
     //this->_channels.erase(channel);
 }
 
@@ -280,7 +280,7 @@ void    Client::receive_message(std::string const &message)
     ssize_t bytes_sent = send(this->_socket, msg.c_str(), msg.length(), 0);
     if (bytes_sent < 0)
         std::cerr << "Error : " << this->_nickname << " doesn't send the message" << std::endl;
-
+        
 }
 
 int Client::execute_command(std::vector<std::string> input, std::vector<Client*> clients, std::vector<Channel*>channels)
@@ -392,3 +392,37 @@ void Client::get_invitation()
         it++;
     }
 }
+
+
+// void Server::display_all_channel()
+// {
+//     std::vector<Channel*>::iterator it = _channels.begin();        
+//     std::cout << std::endl;
+//     while(it != _channel.end())
+//     {
+//         Client *ope = (*it)->get_operator();
+//         std::cout << "  Channel : " << (*it)->get_name() << std::endl;
+//         std::cout <<"   operator --> " ope->get_username() << std::endl;
+//         (*it)->get_all_clients();
+//         std::cout << std::endl;
+//         it++;
+//     }
+//     std::cout << "  -------- end of channels ----------" << std::endl << std::endl;
+// }
+
+
+// void Server::display_all_client()
+// {
+//     std::vector<Client*>::iterator ite = _clients.begin();
+//     std::cout << std::endl;
+//     while(ite != _clients.end())
+//     {
+//         std::cout << "  Client : " << (*it)->get_username() << std::endl;
+//         (*ite)->get_operator();
+//         (*ite)->get_channel();
+//         (*ite)->get_invitation();
+//         std::cout << std::endl;
+//         ite++;
+//     }
+//     std::cout << "  -------- end of clients ----------" << std::endl << std::endl;
+// }

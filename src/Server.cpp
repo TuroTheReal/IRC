@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 14:09:16 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/23 14:22:43 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -329,13 +329,8 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 	if (params.size() != 5)
 		sendClientError(client_fd, "461", params[0]);
 
-	std::vector<std::string>::iterator it = params.begin();
-	for (; it != params.end(); it++)
-		std::cout << *it << "\n";
 	int res = client->execute_command(params, _clients, _channels);
-	std::cout << res << std::endl;
-	std::cout << "USER = " << client->get_username() << std::endl;
-	(void)client_fd;
+	(void)res;
 }
 
 void Server::handlePing(int client_fd, std::vector<std::string> params, Client* client){
@@ -416,11 +411,13 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 }
 
 void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Client* client){
-	std::cout << "PRIVMSG command (à implémenter)" << std::endl;
-	(void)client_fd;
-	(void)client;
-	(void)params;
-
+	if (params.size() == 3)
+	{
+		int res = client->execute_command(params, _clients, _channels);
+		(void)res;
+	}
+	else
+		sendClientError(client_fd, "461", params[0]); // ereur a check
 }
 
 void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
