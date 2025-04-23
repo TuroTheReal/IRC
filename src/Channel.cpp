@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
+/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 15:25:11 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 13:02:11 by dsindres         ###   ########.fr       */
+/*   Updated: 2025/04/23 16:25:00 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -149,3 +149,5 @@ void Channel::get_all_clients()
         it++;
     }
 }
+
+// COMMENT TU GERES SI LE CLIENT QUITTE< TU LAISSE DANS LE CHANNEL OU PAS ?
