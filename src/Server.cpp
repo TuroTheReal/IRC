@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/24 14:13:38 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 14:33:26 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -324,8 +324,6 @@ void Server::parseCommand(std::string msg, int client_fd){
 	if (msg.empty())
 		return;
 
-	std::cout << "Recu dans parseCommand" << std::endl;
-
 	std::vector<std::string> params;
 	std::string cmd;
 	std::istringstream iss(msg);
@@ -349,7 +347,7 @@ void Server::parseCommand(std::string msg, int client_fd){
 		params.push_back(token);
 	}
 
-	std::cout << "CMD == [" << cmd << "]" << std::endl;
+	std::cout << "CMD dans parse == [" << cmd << "]" << std::endl;
 
 	Client* client = getClientByFD(client_fd);
 	if (!client)
@@ -420,10 +418,10 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 		return;
 	}
 
-	// if (!isValidUsername(params[1])){
-	// 	sendClientError(client_fd, "432", params[0]);
-	// 	return;
-	// }
+	if (!isValidUsername(params[1])){
+		sendClientError(client_fd, "432", params[0]);
+		return;
+	}
 
 	int res = client->execute_command(params, _clients, _channels);
 	(void)res;
@@ -446,10 +444,10 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 		return ;
 	}
 
-	// if (!isValidNickname(params[1])){
-	// 	sendClientError(client_fd, "432", params[0]);
-	// 	return ;
-	// }
+	if (!isValidNickname(params[1])){
+		sendClientError(client_fd, "432", params[0]);
+		return ;
+	}
 
 	int res = client->execute_command(params, _clients, _channels);
 	(void)res;
