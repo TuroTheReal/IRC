@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 16:26:51 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 11:30:23 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,7 @@ void  Server::initErrorCodes(){
 	_errorCodes["402"] = ": No such server";
 	_errorCodes["403"] = ": No such channel";
 	_errorCodes["409"] = ": No origin specified";
+	_errorCodes["410"] = ": Invalid CAP subcommand";
 	_errorCodes["411"] = ": No recipient given (PRIVMSG)";
 	_errorCodes["412"] = ": No text to send";
 	_errorCodes["421"] = ": Unknown command";
@@ -135,6 +136,32 @@ void Server::sendClientError(int client_fd, const std::string& key, const std::s
 	if (sent < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 	std::cerr << "Error: client fd " << client_fd << ": " << to_send << std::endl;
+}
+
+void Server::sendWelcome(int client_fd, Client* client){
+	std::string nickname = client->get_nickname();
+
+	std::string msg1 = ":" + _server_name + " 001 " + nickname + " :Welcome to the IRC Network " + nickname + "!" + client->get_username() + "@" + _host_name + "\r\n";
+	int sent1 = send(client_fd, msg1.c_str(), msg1.length(), 0);
+	if (sent1 < 0)
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+	std::string msg2 = ":" + _server_name + " 002 " + nickname + " :Your host is " + _host_name + ", running version 1.0\r\n";
+	int sent2 = send(client_fd, msg2.c_str(), msg2.length(), 0);
+	if (sent2 < 0)
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+	std::string msg3 = ":" + _server_name + " 003 " + nickname + " :This server was created today\r\n";
+	int sent3 = send(client_fd, msg3.c_str(), msg3.length(), 0);
+	if (sent3 < 0)
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+	std::string msg4 = ":" + _server_name + " 004 " + nickname + " " + _host_name + " IRC 1.0, USER Mode: Chan operator. Channel Mode: +i +t +k +o +l\r\n";
+	int sent4 = send(client_fd, msg4.c_str(), msg4.length(), 0);
+	if (sent4 < 0)
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+	// client->set_authentification(true);
 }
 
 void Server::newClient(){
@@ -330,17 +357,16 @@ void Server::handleKick(int client_fd, std::vector<std::string> params, Client* 
 		if (params.size() > 4)
 			sendClientError(client_fd, "459", params[0]);
 		return;
-		}
+	}
 
-		int res = client->execute_command(params, _clients, _channels);// erreur a check
-		if (res != 0 && res != 11)
-		{
-			std::ostringstream oss;
-			oss << res;
-			sendClientError(client_fd, oss.str() ,params[0]);
-			// Si canal inexistant : 403
-			// Si utilisateur pas sur le canal : 441
-			// Si non opérateur : 482
+	int res = client->execute_command(params, _clients, _channels);// erreur a check
+	if (res != 0 && res != 11){
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+		// Si canal inexistant : 403
+		// Si utilisateur pas sur le canal : 441
+		// Si non opérateur : 482
 	}
 }
 
@@ -354,13 +380,15 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 	}
 
 	int res = client->execute_command(params, _clients, _channels);
-	if (res != 0 && res != 11)
-	{
-		std::ostringstream oss;
-		oss << res;
-		sendClientError(client_fd, oss.str() ,params[0]);
+	(void)res;
+	// if (res != 0 && res != 11){
+	// 	std::ostringstream oss;
+	// 	oss << res;
+	// 	sendClientError(client_fd, oss.str() ,params[0]);
 		// Si déjà enregistré : 462
-	}
+		// return;
+	// }
+	sendWelcome(client_fd, client);
 }
 
 void Server::handlePing(int client_fd, std::vector<std::string> params, Client* client){
@@ -368,7 +396,7 @@ void Server::handlePing(int client_fd, std::vector<std::string> params, Client* 
 		sendClientError(client_fd, "409", params[0]);
 		return;
 	}
-	std::string response = ":" + _server_name + " PONG " + _server_name + " :" + params[0] + "\r\n";
+	std::string response = ":" + _server_name + " PONG " + _server_name + " :" + params[1] + "\r\n";
 
 	int sent = send(client_fd, response.c_str(), response.length(), 0);
 	if (sent < 0)
@@ -387,14 +415,14 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 	}
 
 	int res = client->execute_command(params, _clients, _channels);
-	if (res != 0 && res != 11)
-	{
-		std::ostringstream oss;
-		oss << res;
-		sendClientError(client_fd, oss.str() ,params[0]);
+	(void)res;
+	// if (res != 0 && res != 11){
+	// 	std::ostringstream oss;
+	// 	oss << res;
+	// 	sendClientError(client_fd, oss.str() ,params[0]);
 		// Si format invalide : 432
 		// Si pseudo déjà utilisé : 433
-	}
+	// }
 
 	// std::string nick = params[1];
 	// std::cout << "NICK défini: " << nick << std::endl;
@@ -412,10 +440,27 @@ void Server::handleCap(int client_fd, std::vector<std::string> params, Client* c
 			sendClientError(client_fd, "459", params[0]);
 		return;
 	}
-	// A FINIR version simplifier pour ecole
-	(void)client_fd;
-	(void)client;
-	(void)params;
+	std::string option = params[1];
+	for (size_t i = 0; i < option.size(); i++)
+		option[i] = toupper(option[i]);
+
+	if (option == "LS"){
+		std::string response = ":" + _host_name + " CAP " + client->get_nickname() + " LS :\r\n";
+		int sent = send (client_fd, response.c_str(), response.length(), 0);
+		if (sent < 0)
+			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+	}
+	else if (option == "REQ"){
+		std::string response = ":" + _host_name + " CAP " + client->get_nickname() + " ACK :\r\n";
+		int sent = send(client_fd, response.c_str(), response.length(), 0);
+		if (sent < 0)
+			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+	}
+	else if (option == "END"){
+		return;
+	}
+	else
+		sendClientError(client_fd, "410", option);
 }
 
 void Server::handleInvite(int client_fd, std::vector<std::string> params, Client* client){

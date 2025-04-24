@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 13:53:03 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 10:52:26 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,6 +55,7 @@ class Server {
 		void	initErrorCodes();
 		void	getHostName();
 		void	sendClientError(int client_fd, const std::string& key, const std::string& cmd);
+		void	sendWelcome(int client_fd, Client* client);
 
 		void	newClient();
 		void	handleClient(size_t index);
