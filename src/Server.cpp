@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/24 12:14:39 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 14:13:38 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -64,13 +64,34 @@ bool Server::isValidChannel(std::string chan){
 
 bool Server::isValidNickname(std::string nick){
 	std::string prohibed;
+
+	if (nick.size() > 20 || nick.empty())
+		return false;
+
 	for (char c = 0; c < 32; ++c)
 		prohibed += c;
-	prohibed += " !@#$%^&*()=+~`|\\\"':;<>?,./";
+	prohibed += " ,*?!@.";
 
-	for (size_t i = 0; i < prohibed.size(); i++){
-		if (prohibed.find(nick[i]) != std::string::npos)
+	for (size_t i = 0; i < nick.size(); i++){
+		if (prohibed.find(nick[i]) != std::string::npos){
+			std::cerr << "Invalid char in nick: '" << nick[i] << "'\n";
 			return false;
+		}
+	}
+	return true;
+}
+
+bool Server::isValidUsername(std::string user){
+	std::string prohibed = " \r\n\0@*!";
+
+	if (user.size() > 20 || user.empty())
+		return false;
+
+	for (size_t i = 0; i < user.size(); i++){
+		if (prohibed.find(user[i]) != std::string::npos){
+			std::cerr << "Invalid char in nick: '" << user[i] << "'\n";
+			return false;
+		}
 	}
 	return true;
 }
@@ -155,22 +176,22 @@ void Server::sendWelcome(int client_fd, Client* client){
 	std::string nickname = client->get_nickname();
 
 	std::string msg1 = ":" + _server_name + " 001 " + nickname + " :Welcome to the IRC Network " + nickname + "!" + client->get_username() + "@" + _host_name + "\r\n";
-	int sent1 = send(client_fd, msg1.c_str(), msg1.length(), 0);
+	ssize_t sent1 = send(client_fd, msg1.c_str(), msg1.length(), 0);
 	if (sent1 < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 
 	std::string msg2 = ":" + _server_name + " 002 " + nickname + " :Your host is " + _host_name + ", running version 1.0\r\n";
-	int sent2 = send(client_fd, msg2.c_str(), msg2.length(), 0);
+	ssize_t sent2 = send(client_fd, msg2.c_str(), msg2.length(), 0);
 	if (sent2 < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 
 	std::string msg3 = ":" + _server_name + " 003 " + nickname + " :This server was created today\r\n";
-	int sent3 = send(client_fd, msg3.c_str(), msg3.length(), 0);
+	ssize_t sent3 = send(client_fd, msg3.c_str(), msg3.length(), 0);
 	if (sent3 < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 
 	std::string msg4 = ":" + _server_name + " 004 " + nickname + " " + _host_name + " IRC 1.0, USER Mode: Chan operator. Channel Mode: +i +t +k +o +l\r\n";
-	int sent4 = send(client_fd, msg4.c_str(), msg4.length(), 0);
+	ssize_t sent4 = send(client_fd, msg4.c_str(), msg4.length(), 0);
 	if (sent4 < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 
@@ -233,8 +254,19 @@ void Server::removeClient(size_t index){
 			break;
 		}
 	}
-	std::cout << "Client disconnected from remove" << std::endl;
+	std::cout << "Client disconnected" << std::endl;
 }
+
+void Server::removeClientByFD(int client_fd){
+	for (size_t i = 0; i < _fds.size(); i++){
+		if (client_fd == _fds[i].fd){
+			removeClient(i);
+			return;
+		}
+	}
+	std::cerr << "Error: fd " << client_fd << " not found in _fds" << std::endl;
+}
+
 
 void Server::cleanup(){
 
@@ -259,9 +291,7 @@ void Server::handleClient(size_t index){
 
 	if (bytes_read <= 0)
 	{
-		if (bytes_read == 0)
-			std::cout << "Client disconnected from handle" << std::endl;
-		else
+		if (bytes_read != 0)
 			throw std::runtime_error(std::string("recv: ") + std::strerror(errno));
 		removeClient(index);
 		return ;
@@ -329,10 +359,10 @@ void Server::parseCommand(std::string msg, int client_fd){
 		handleKick(client_fd, params, client);
 	else if (cmd == "USER") // 5
 		handleUser(client_fd, params, client);
-	else if (cmd == "PING") // 2 ou 3
-		handlePing(client_fd, params, client);
 	else if (cmd == "NICK") // 2
 		handleNick(client_fd, params, client);
+	else if (cmd == "PING") // 2 ou 3
+		handlePing(client_fd, params);
 	else if (cmd == "CAP") // 2 ou 3 // a verifier
 		handleCap(client_fd, params, client);
 	else if (cmd == "INVITE") // 3
@@ -348,7 +378,7 @@ void Server::parseCommand(std::string msg, int client_fd){
 	else if (cmd == "PASS") // 2
 		handlePass(client_fd, params, client);
 	else if (cmd == "QUIT") // 1 ou 2
-		handleQuit(client_fd, params, client);
+		handleQuit(client_fd);
 	else
 		sendClientError(client_fd, "421", cmd);
 	(void)client_fd;
@@ -390,6 +420,11 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 		return;
 	}
 
+	// if (!isValidUsername(params[1])){
+	// 	sendClientError(client_fd, "432", params[0]);
+	// 	return;
+	// }
+
 	int res = client->execute_command(params, _clients, _channels);
 	(void)res;
 	// if (res != 0 && res != 11){
@@ -402,20 +437,6 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 	sendWelcome(client_fd, client);
 }
 
-void Server::handlePing(int client_fd, std::vector<std::string> params, Client* client){
-	if (params.size() != 2){
-		sendClientError(client_fd, "409", params[0]);
-		return;
-	}
-	std::string response = ":" + _server_name + " PONG " + _server_name + " :" + params[1] + "\r\n";
-
-	int sent = send(client_fd, response.c_str(), response.length(), 0);
-	if (sent < 0)
-		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-	std::cout << "Sent PONG response to client " << client_fd << std::endl;
-	(void)client;
-}
-
 void Server::handleNick(int client_fd, std::vector<std::string> params, Client* client){
 	if (params.size() != 2){
 		if (params.size() < 2)
@@ -425,10 +446,10 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 		return ;
 	}
 
-	if (!isValidNickname(params[1])){
-		sendClientError(client_fd, "432", params[0]);
-		return ;
-	}
+	// if (!isValidNickname(params[1])){
+	// 	sendClientError(client_fd, "432", params[0]);
+	// 	return ;
+	// }
 
 	int res = client->execute_command(params, _clients, _channels);
 	(void)res;
@@ -439,6 +460,19 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 	// Si pseudo déjà utilisé : 433
 	// return;
 	// }
+}
+
+void Server::handlePing(int client_fd, std::vector<std::string> params){
+	if (params.size() != 2){
+		sendClientError(client_fd, "409", params[0]);
+		return;
+	}
+	std::string response = ":" + _server_name + " PONG " + _server_name + " :" + params[1] + "\r\n";
+
+	ssize_t sent = send(client_fd, response.c_str(), response.length(), 0);
+	if (sent < 0)
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+	std::cout << "Sent PONG response to client " << client_fd << std::endl;
 }
 
 void Server::handleCap(int client_fd, std::vector<std::string> params, Client* client){
@@ -455,13 +489,13 @@ void Server::handleCap(int client_fd, std::vector<std::string> params, Client* c
 
 	if (option == "LS"){
 		std::string response = ":" + _host_name + " CAP " + client->get_nickname() + " LS :\r\n";
-		int sent = send (client_fd, response.c_str(), response.length(), 0);
+		ssize_t sent = send (client_fd, response.c_str(), response.length(), 0);
 		if (sent < 0)
 			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 	}
 	else if (option == "REQ"){
 		std::string response = ":" + _host_name + " CAP " + client->get_nickname() + " ACK :\r\n";
-		int sent = send(client_fd, response.c_str(), response.length(), 0);
+		ssize_t sent = send(client_fd, response.c_str(), response.length(), 0);
 		if (sent < 0)
 			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 	}
@@ -586,10 +620,8 @@ void Server::handlePass(int client_fd, std::vector<std::string> params, Client* 
 	(void)params;
 }
 
-void Server::handleQuit(int client_fd, std::vector<std::string> params, Client* client){
-	(void)client_fd;
-	(void)client;
-	(void)params;
+void Server::handleQuit(int client_fd){
+	removeClientByFD(client_fd);
 }
 
 void Server::run(){
@@ -633,7 +665,7 @@ Server::Server(int port, std::string password) : _port(port), _password(password
 		listenSocket();
 		initErrorCodes();
 		getHostName();
-		run();
+		run(); // check si cleanup avant de throw ou cleanup dans le catch ou apres
 	}
 	catch (std::exception const &e){
 		throw;

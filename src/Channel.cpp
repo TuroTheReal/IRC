@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 15:25:11 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 16:25:00 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 14:19:21 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -150,4 +150,5 @@ void Channel::get_all_clients()
     }
 }
 
-// COMMENT TU GERES SI LE CLIENT QUITTE< TU LAISSE DANS LE CHANNEL OU PAS ?
+// COMMENT TU GERES SI LE CLIENT QUITTE avec QUIT, TU LAISSE DANS LE CHANNEL OU PAS ?
+// si quit || se reconnecte ()

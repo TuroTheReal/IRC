@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/24 11:51:16 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 14:28:54 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,8 @@ class Server {
 		std::vector<pollfd>					_fds;
 		std::map<int, std::string>			_clientBuffers;
 		std::map<std::string, std::string>	_errorCodes;
+		std::vector<Client*>				_clients;
+		std::vector<Channel*>				_channels;
 
 		void	createSocket();
 		void	bindSocket();
@@ -54,16 +56,17 @@ class Server {
 
 		void	initErrorCodes();
 		void	getHostName();
-		void	sendClientError(int client_fd, const std::string& key, const std::string& cmd);
-		void	sendWelcome(int client_fd, Client* client);
+		void	sendClientError(int, const std::string&, const std::string&);
+		void	sendWelcome(int, Client*);
 
 		void	newClient();
-		void	handleClient(size_t index);
-		void	removeClient(size_t index);
+		void	handleClient(size_t);
+		void	removeClient(size_t);
+		void	removeClientByFD(int);
 		void	cleanup();
 
-		void	parseCommand(std::string, int client_fd);
-		void	processClientBuffer(int client_fd);
+		void	parseCommand(std::string, int);
+		void	processClientBuffer(int);
 
 		void	handleJoin(int, std::vector<std::string>, Client*);
 		void	handleInvite(int, std::vector<std::string>, Client*);
@@ -75,16 +78,15 @@ class Server {
 		void	handleCap(int, std::vector<std::string>, Client*);
 		void	handleUser(int, std::vector<std::string>, Client*);
 		void	handleTopic(int, std::vector<std::string>, Client*);
-		void	handlePing(int, std::vector<std::string>, Client*);
-		void	handleQuit(int, std::vector<std::string>, Client*);
+		void	handlePing(int, std::vector<std::string>);
+		void	handleQuit(int);
 
 		Client*	getClientByFD(int);
-		bool	isValidChannel(std::string chan);
-		bool	isValidNickname(std::string nick);
+		bool	isValidChannel(std::string);
+		bool	isValidNickname(std::string);
+		bool	isValidUsername(std::string);
 
 		//debug
 		void	display_all_clients();
 		void	display_all_channels();
-		std::vector<Client*>		_clients;
-		std::vector<Channel*>		_channels;
 };
