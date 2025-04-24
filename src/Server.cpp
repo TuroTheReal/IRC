@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/24 11:30:23 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 12:14:39 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,39 +58,52 @@ bool Server::isValidChannel(std::string chan){
 		return false;
 	for (size_t i = 1; i < chan.size(); i++)
 		if (not_inside.find(chan[i]) != std::string::npos)
-			return 0;
+			return false;
+	return true;
+}
+
+bool Server::isValidNickname(std::string nick){
+	std::string prohibed;
+	for (char c = 0; c < 32; ++c)
+		prohibed += c;
+	prohibed += " !@#$%^&*()=+~`|\\\"':;<>?,./";
+
+	for (size_t i = 0; i < prohibed.size(); i++){
+		if (prohibed.find(nick[i]) != std::string::npos)
+			return false;
+	}
 	return true;
 }
 
 void  Server::initErrorCodes(){
-	_errorCodes["1"] = ": ERREUR A REVOIR";
-	_errorCodes["401"] = ": No such nick/channel";
-	_errorCodes["402"] = ": No such server";
-	_errorCodes["403"] = ": No such channel";
-	_errorCodes["409"] = ": No origin specified";
-	_errorCodes["410"] = ": Invalid CAP subcommand";
-	_errorCodes["411"] = ": No recipient given (PRIVMSG)";
-	_errorCodes["412"] = ": No text to send";
-	_errorCodes["421"] = ": Unknown command";
-	_errorCodes["431"] = ": No nickname given";
-	_errorCodes["432"] = ": Erroneous nickname";
-	_errorCodes["433"] = ": Nickname is already in use";
-	_errorCodes["441"] = ": They aren't on that channel";
-	_errorCodes["442"] = ": You're not on that channel";
-	_errorCodes["461"] = ": Not enough parameters";
-	_errorCodes["459"] = ": Too many arguments"; // a check
-	_errorCodes["462"] = ": You may not reregister";
-	_errorCodes["471"] = ": Cannot join channel (+l)";
-	_errorCodes["472"] = ": Unknown mode char";
-	_errorCodes["473"] = ": Cannot join channel (+i)";
-	_errorCodes["474"] = ": Cannot join channel (+b)";
-	_errorCodes["475"] = ": Cannot join channel (+k)";
-	_errorCodes["476"] = ": Bad channel mask";
-	_errorCodes["481"] = ": Permission Denied (You're not an IRC operator)";
-	_errorCodes["482"] = ": You're not channel operator";
-	_errorCodes["484"] = ": Your connection is restricted";
-	_errorCodes["501"] = ": Unknown MODE flag";
-	_errorCodes["502"] = ": Cannot change mode for other users";
+	_errorCodes["1"] = "ERREUR A REVOIR";
+	_errorCodes["401"] = "No such nick/channel";
+	_errorCodes["402"] = "No such server";
+	_errorCodes["403"] = "No such channel";
+	_errorCodes["409"] = "No origin specified";
+	_errorCodes["410"] = "Invalid CAP subcommand";
+	_errorCodes["411"] = "No recipient given (PRIVMSG)";
+	_errorCodes["412"] = "No text to send";
+	_errorCodes["421"] = "Unknown command";
+	_errorCodes["431"] = "No nickname given";
+	_errorCodes["432"] = "Erroneous nickname";
+	_errorCodes["433"] = "Nickname is already in use";
+	_errorCodes["441"] = "They aren't on that channel";
+	_errorCodes["442"] = "You're not on that channel";
+	_errorCodes["461"] = "Not enough parameters";
+	_errorCodes["459"] = "Too many arguments"; // a check
+	_errorCodes["462"] = "You may not reregister";
+	_errorCodes["471"] = "Cannot join channel (+l)";
+	_errorCodes["472"] = "Unknown mode char";
+	_errorCodes["473"] = "Cannot join channel (+i)";
+	_errorCodes["474"] = "Cannot join channel (+b)";
+	_errorCodes["475"] = "Cannot join channel (+k)";
+	_errorCodes["476"] = "Bad channel mask";
+	_errorCodes["481"] = "Permission Denied (You're not an IRC operator)";
+	_errorCodes["482"] = "You're not channel operator";
+	_errorCodes["484"] = "Your connection is restricted";
+	_errorCodes["501"] = "Unknown MODE flag";
+	_errorCodes["502"] = "Cannot change mode for other users";
 }
 
 void	Server::getHostName(){
@@ -130,12 +143,12 @@ void Server::sendClientError(int client_fd, const std::string& key, const std::s
 	if (!cmd.empty())
 		to_send += " " + cmd;
 
-	to_send += " :" + errorMsg + "\r\n";
+	to_send += ": " + errorMsg + "\r\n";
 
 	ssize_t sent = send(client_fd, to_send.c_str(), to_send.length(), 0);
 	if (sent < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-	std::cerr << "Error: client fd " << client_fd << ": " << to_send << std::endl;
+	std::cerr << "Error: client fd " << client_fd << " " << to_send << std::endl;
 }
 
 void Server::sendWelcome(int client_fd, Client* client){
@@ -224,17 +237,18 @@ void Server::removeClient(size_t index){
 }
 
 void Server::cleanup(){
-	for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); it++)
-		safeClose(it->fd);
-	_fds.clear();
 
 	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); it++)
-		delete *it;
+	delete *it;
 	_clients.clear();
 
 	for (std::vector<Channel*>::iterator it = _channels.begin(); it != _channels.end(); it++)
-		delete *it;
+	delete *it;
 	_channels.clear();
+
+	for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); it++)
+		safeClose(it->fd);
+	_fds.clear();
 }
 
 void Server::handleClient(size_t index){
@@ -371,9 +385,6 @@ void Server::handleKick(int client_fd, std::vector<std::string> params, Client* 
 }
 
 void Server::handleUser(int client_fd, std::vector<std::string> params, Client* client){
-	// std::string response = ":" + _server_name + " 002 * :Your host is " + _host_name + "\r\n";
-	// send(client_fd, response.c_str(), response.length(), 0);
-
 	if (params.size() != 5){
 		sendClientError(client_fd, "461", params[0]);
 		return;
@@ -414,22 +425,20 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 		return ;
 	}
 
+	if (!isValidNickname(params[1])){
+		sendClientError(client_fd, "432", params[0]);
+		return ;
+	}
+
 	int res = client->execute_command(params, _clients, _channels);
 	(void)res;
 	// if (res != 0 && res != 11){
 	// 	std::ostringstream oss;
 	// 	oss << res;
 	// 	sendClientError(client_fd, oss.str() ,params[0]);
-		// Si format invalide : 432
-		// Si pseudo déjà utilisé : 433
+	// Si pseudo déjà utilisé : 433
+	// return;
 	// }
-
-	// std::string nick = params[1];
-	// std::cout << "NICK défini: " << nick << std::endl;
-	// Confirmation au client
-	// std::string response = ":" + _server_name + " 001 " + nick + " :Welcome to the IRC server\r\n";
-	// send(client_fd, response.c_str(), response.length(), 0);
-	// (void)client;
 }
 
 void Server::handleCap(int client_fd, std::vector<std::string> params, Client* client){

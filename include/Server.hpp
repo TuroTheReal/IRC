@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/24 10:52:26 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/24 11:51:16 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,6 +80,7 @@ class Server {
 
 		Client*	getClientByFD(int);
 		bool	isValidChannel(std::string chan);
+		bool	isValidNickname(std::string nick);
 
 		//debug
 		void	display_all_clients();
