@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/24 14:28:54 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/29 10:25:54 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,7 +35,7 @@
 class Server {
 	public:
 		Server(int port, std::string password);
-		~Server(){std::cout << "Server closed" << std::endl;}
+		~Server();
 
 	private:
 		int									_port;
@@ -86,7 +86,7 @@ class Server {
 		bool	isValidNickname(std::string);
 		bool	isValidUsername(std::string);
 
-		//debug
+		// debug
 		void	display_all_clients();
 		void	display_all_channels();
 };

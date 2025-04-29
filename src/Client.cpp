@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 13:12:33 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/23 15:16:28 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/29 11:22:00 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -403,35 +403,6 @@ void Client::get_invitation()
 }
 
 
-// void Server::display_all_channel()
-// {
-//     std::vector<Channel*>::iterator it = _channels.begin();
-//     std::cout << std::endl;
-//     while(it != _channel.end())
-//     {
-//         Client *ope = (*it)->get_operator();
-//         std::cout << "  Channel : " << (*it)->get_name() << std::endl;
-//         std::cout <<"   operator --> " ope->get_username() << std::endl;
-//         (*it)->get_all_clients();
-//         std::cout << std::endl;
-//         it++;
-//     }
-//     std::cout << "  -------- end of channels ----------" << std::endl << std::endl;
-// }
-
-
-// void Server::display_all_client()
-// {
-//     std::vector<Client*>::iterator ite = _clients.begin();
-//     std::cout << std::endl;
-//     while(ite != _clients.end())
-//     {
-//         std::cout << "  Client : " << (*it)->get_username() << std::endl;
-//         (*ite)->get_operator();
-//         (*ite)->get_channel();
-//         (*ite)->get_invitation();
-//         std::cout << std::endl;
-//         ite++;
-//     }
-//     std::cout << "  -------- end of clients ----------" << std::endl << std::endl;
-// }
+bool Client::isRegistered() const {
+	return _hasPassword && _hasNick && _hasUser;
+}

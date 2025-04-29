@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/24 14:33:26 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/29 11:30:31 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -111,9 +111,13 @@ void  Server::initErrorCodes(){
 	_errorCodes["433"] = "Nickname is already in use";
 	_errorCodes["441"] = "They aren't on that channel";
 	_errorCodes["442"] = "You're not on that channel";
+	_errorCodes["443"] = "Already on channel";
+	_errorCodes["451"] = "You have not registered";
+	_errorCodes["459"] = "Too many arguments";
 	_errorCodes["461"] = "Not enough parameters";
-	_errorCodes["459"] = "Too many arguments"; // a check
 	_errorCodes["462"] = "You may not reregister";
+	_errorCodes["464"] = "Password incorrect";
+	_errorCodes["465"] = "You are banned from this server";
 	_errorCodes["471"] = "Cannot join channel (+l)";
 	_errorCodes["472"] = "Unknown mode char";
 	_errorCodes["473"] = "Cannot join channel (+i)";
@@ -269,18 +273,23 @@ void Server::removeClientByFD(int client_fd){
 
 
 void Server::cleanup(){
+	if (!_clients.empty()) {
+		for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); it++)
+			delete *it;
+		_clients.clear();
+	}
 
-	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); it++)
-	delete *it;
-	_clients.clear();
+	if (!_channels.empty()) {
+		for (std::vector<Channel*>::iterator it = _channels.begin(); it != _channels.end(); it++)
+			delete *it;
+		_channels.clear();
+	}
 
-	for (std::vector<Channel*>::iterator it = _channels.begin(); it != _channels.end(); it++)
-	delete *it;
-	_channels.clear();
-
-	for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); it++)
-		safeClose(it->fd);
-	_fds.clear();
+	if (!_fds.empty()) {
+		for (std::vector<pollfd>::iterator it = _fds.begin(); it != _fds.end(); it++)
+			safeClose(it->fd);
+		_fds.clear();
+	}
 }
 
 void Server::handleClient(size_t index){
@@ -393,6 +402,11 @@ Client* Server::getClientByFD(int client_fd){
 }
 
 void Server::handleKick(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->isRegistered()) {
+	// 	sendClientError(client_fd, "451", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() < 3 || params.size() > 4 ){
 		if (params.size() < 3)
 			sendClientError(client_fd, "461", params[0]);
@@ -401,7 +415,7 @@ void Server::handleKick(int client_fd, std::vector<std::string> params, Client* 
 		return;
 	}
 
-	int res = client->execute_command(params, _clients, _channels);// erreur a check
+	int res = client->execute_command(params, _clients, _channels);
 	if (res != 0 && res != 11){
 		std::ostringstream oss;
 		oss << res;
@@ -413,6 +427,11 @@ void Server::handleKick(int client_fd, std::vector<std::string> params, Client* 
 }
 
 void Server::handleUser(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->hasPassword()) {
+	// 	sendClientError(client_fd, "464", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() != 5){
 		sendClientError(client_fd, "461", params[0]);
 		return;
@@ -432,10 +451,18 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 		// Si déjà enregistré : 462
 		// return;
 	// }
-	sendWelcome(client_fd, client);
+
+	// client->set_user(true);
+	// if (client->isRegistered());
+	// 	sendWelcome(client_fd, client);
 }
 
 void Server::handleNick(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->hasPassword()) {
+	// 	sendClientError(client_fd, "464", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() != 2){
 		if (params.size() < 2)
 			sendClientError(client_fd, "431", params[0]);
@@ -458,6 +485,11 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 	// Si pseudo déjà utilisé : 433
 	// return;
 	// }
+
+	// client->set_nick(true);
+	// if (client->isRegistered());
+	// 	sendWelcome(client_fd, client);
+
 }
 
 void Server::handlePing(int client_fd, std::vector<std::string> params){
@@ -505,6 +537,11 @@ void Server::handleCap(int client_fd, std::vector<std::string> params, Client* c
 }
 
 void Server::handleInvite(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->isRegistered()) {
+	// 	sendClientError(client_fd, "451", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() != 5){
 		sendClientError(client_fd, "461", params[0]);
 		return;
@@ -518,6 +555,11 @@ void Server::handleInvite(int client_fd, std::vector<std::string> params, Client
 }
 
 void Server::handleTopic(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->isRegistered()) {
+	// 	sendClientError(client_fd, "451", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() < 2 || params.size() > 3 ){
 		if (params.size() < 2)
 			sendClientError(client_fd, "461", params[0]);
@@ -534,6 +576,11 @@ void Server::handleTopic(int client_fd, std::vector<std::string> params, Client*
 }
 
 void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->isRegistered()) {
+	// 	sendClientError(client_fd, "451", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() < 2 || params.size() > 3 ){
 		if (params.size() < 2)
 			sendClientError(client_fd, "461", params[0]);
@@ -545,7 +592,7 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 	display_all_channels();
 
 	if (!isValidChannel(params[1])){
-		sendClientError(client_fd, "476", params[1]); // erreur a check
+		sendClientError(client_fd, "476", params[1]);
 		return;
 	}
 
@@ -577,6 +624,11 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 }
 
 void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->isRegistered()) {
+	// 	sendClientError(client_fd, "451", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() != 3){
 		sendClientError(client_fd, "411", params[0]); // ereur a check
 		return;
@@ -592,6 +644,11 @@ void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Clien
 	}}
 
 void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->isRegistered()) {
+	// 	sendClientError(client_fd, "451", params[0]);
+	// 	return;
+	// }
+
 	if (params.size() < 2 || params.size() > 5 ){
 		if (params.size() < 2)
 			sendClientError(client_fd, "461", params[0]);
@@ -609,10 +666,21 @@ void Server::handleMode(int client_fd, std::vector<std::string> params, Client* 
 
 void Server::handlePass(int client_fd, std::vector<std::string> params, Client* client){
 	if (params.size() != 2){
-		sendClientError(client_fd, "461", params[0]); // ereur a check
+		sendClientError(client_fd, "461", params[0]);
 		return;
 	}
-	// Si déjà authentifié : 462
+
+	// if (client->has_password()){
+	// 	sendClientError(client_fd, "462", params[0]);
+	// 	return;
+	// }
+
+	//if (params[1] != _password){
+	//	sendClientError(client_fd, "464", params[0]);
+	//	return;
+	//}
+	// client->set_password(true);
+
 	(void)client_fd;
 	(void)client;
 	(void)params;
@@ -663,42 +731,56 @@ Server::Server(int port, std::string password) : _port(port), _password(password
 		listenSocket();
 		initErrorCodes();
 		getHostName();
-		run(); // check si cleanup avant de throw ou cleanup dans le catch ou apres
+		run();
 	}
 	catch (std::exception const &e){
+		cleanup();
 		throw;
 	}
 }
 
+Server::~Server(){
+	std::cout << "Server closed" << std::endl;
+	cleanup();
+}
+
+
+/*******************************************************************/
+
+
 void Server::display_all_channels()
 {
-    std::vector<Channel*>::iterator it = _channels.begin();
-    std::cout << std::endl;
-    while(it != _channels.end())
-    {
-        Client *ope = (*it)->get_operator();
-        std::cout << "  Channel : " << (*it)->get_name() << std::endl;
-        std::cout << "   operator --> " << ope->get_username() << std::endl;
-        (*it)->get_all_clients();
-        std::cout << std::endl;
-        it++;
-    }
-    std::cout << "  -------- end of channels ----------" << std::endl << std::endl;
+	std::vector<Channel*>::iterator it = _channels.begin();
+	std::cout << std::endl;
+	while(it != _channels.end())
+	{
+		Client *ope = (*it)->get_operator();
+		std::cout << "  Channel : " << (*it)->get_name() << std::endl;
+		std::cout << "   operator --> " << ope->get_username() << std::endl;
+		(*it)->get_all_clients();
+		std::cout << std::endl;
+		it++;
+	}
+	std::cout << "  -------- end of channels ----------" << std::endl << std::endl;
 }
 
 
 void Server::display_all_clients()
 {
-    std::vector<Client*>::iterator ite = _clients.begin();
-    std::cout << std::endl;
-    while(ite != _clients.end())
-    {
-        std::cout << "  Client : " << (*ite)->get_username() << std::endl;
-        (*ite)->get_operator();
-        (*ite)->get_channel();
-        (*ite)->get_invitation();
-        std::cout << std::endl;
-        ite++;
-    }
-    std::cout << "  -------- end of clients ----------" << std::endl << std::endl;
+	std::vector<Client*>::iterator ite = _clients.begin();
+	std::cout << std::endl;
+	while(ite != _clients.end())
+	{
+		std::cout << "  Client : " << (*ite)->get_username() << std::endl;
+		(*ite)->get_operator();
+		(*ite)->get_channel();
+		(*ite)->get_invitation();
+		std::cout << std::endl;
+		ite++;
+	}
+	std::cout << "  -------- end of clients ----------" << std::endl << std::endl;
 }
+
+// demander qu est ce quune registration complete, et si apres quelle soit complete on peut encore faire les commandes pour se register ?
+// USERHOST cest quoi ?
+// check si cleanup avant throw || dans le catch || apres pour clean correctement apres un erreur
