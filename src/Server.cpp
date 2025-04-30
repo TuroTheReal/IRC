@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/29 11:30:31 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/30 11:00:47 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -338,6 +338,30 @@ void Server::parseCommand(std::string msg, int client_fd){
 	std::istringstream iss(msg);
 
 	iss >> cmd;
+
+	if (!cmd.empty() && cmd[0] == '!') {
+		std::transform(cmd.begin() + 1, cmd.end(), cmd.begin() + 1, ::toupper);
+		params.push_back(cmd);
+
+		std::string token;
+		while (iss >> token) {
+		    if (token[0] == ':') {
+				std::string start = token.substr(1);
+				std::string rest;
+				getline(iss, rest);
+				params.push_back(start + rest);
+				break;
+		    }
+		    params.push_back(token);
+		}
+
+		Client* client = getClientByFD(client_fd);
+		if (!client)
+			throw std::runtime_error(std::string("client not found"));
+		handleCommandBot(client_fd, params, client);
+		return;
+	}
+
 	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 
 	params.push_back(cmd);
@@ -389,6 +413,33 @@ void Server::parseCommand(std::string msg, int client_fd){
 	else
 		sendClientError(client_fd, "421", cmd);
 	(void)client_fd;
+}
+
+void Server::handleCommandBot(int client_fd, std::vector<std::string> params, Client* client){
+	std::string to_ret;
+	std::string cmd = params[0].substr(1);
+
+	if (cmd == "TIME"){
+		time_t now = time(0);
+		char* dt = ctime(&now);
+		to_ret = "Current time: " + std::string(dt);
+		if (!to_ret.empty() && to_ret[to_ret.length()-1] == '\n') {
+			to_ret.erase(to_ret.length()-1);
+		}
+	}
+	else if (cmd == "WEATHER")
+		to_ret = "Today weather: 25°C, sunny.";
+	else if (cmd == "HELP")
+		to_ret = "Commands are : !HELP, !TIME & !WEATHER";
+	else {
+		sendClientError(client_fd, "421", cmd + " :Use !HELP to see all the bot commands");
+		return;
+	}
+
+	std::string response = ":" + _server_name + "_bot PRIVMSG " + client->get_nickname() + " :" + to_ret + "\r\n";
+	ssize_t sent = send(client_fd, response.c_str(), response.size(), 0);
+	if (sent < 0)
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 }
 
 Client* Server::getClientByFD(int client_fd){
@@ -489,7 +540,7 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 	// client->set_nick(true);
 	// if (client->isRegistered());
 	// 	sendWelcome(client_fd, client);
-
+	sendWelcome(client_fd, client);
 }
 
 void Server::handlePing(int client_fd, std::vector<std::string> params){

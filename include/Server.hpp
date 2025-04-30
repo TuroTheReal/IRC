@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/29 10:25:54 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/30 10:19:17 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,7 @@ class Server {
 		void	parseCommand(std::string, int);
 		void	processClientBuffer(int);
 
+		void	handleCommandBot(int, std::vector<std::string>, Client*);
 		void	handleJoin(int, std::vector<std::string>, Client*);
 		void	handleInvite(int, std::vector<std::string>, Client*);
 		void	handlePrivmsg(int, std::vector<std::string>, Client*);
