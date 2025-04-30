@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/30 11:00:47 by artberna         ###   ########.fr       */
+/*   Updated: 2025/04/30 16:10:24 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -129,6 +129,8 @@ void  Server::initErrorCodes(){
 	_errorCodes["484"] = "Your connection is restricted";
 	_errorCodes["501"] = "Unknown MODE flag";
 	_errorCodes["502"] = "Cannot change mode for other users";
+	_errorCodes["601"] = "Invalid port number";
+	_errorCodes["602"] = "Invalid file size";
 }
 
 void	Server::getHostName(){
@@ -410,6 +412,8 @@ void Server::parseCommand(std::string msg, int client_fd){
 		handlePass(client_fd, params, client);
 	else if (cmd == "QUIT") // 1 ou 2
 		handleQuit(client_fd);
+	else if (cmd == "SEND") // 2
+		handleSend(client_fd, params, client);
 	else
 		sendClientError(client_fd, "421", cmd);
 	(void)client_fd;
@@ -428,9 +432,15 @@ void Server::handleCommandBot(int client_fd, std::vector<std::string> params, Cl
 		}
 	}
 	else if (cmd == "WEATHER")
-		to_ret = "Today weather: 25°C, sunny.";
+		to_ret = "Today's weather: 25°C, sunny.";
 	else if (cmd == "HELP")
 		to_ret = "Commands are : !HELP, !TIME & !WEATHER";
+	else if (cmd == "WHOAMI"){
+		if (!client->get_nickname().empty()) // remplacer par booleen
+			to_ret = "Your nick is: " + client->get_nickname();
+		if (!client->get_username().empty()) // remplacer par booleen
+			to_ret += "\nYour user is: " + client->get_username();
+	}
 	else {
 		sendClientError(client_fd, "421", cmd + " :Use !HELP to see all the bot commands");
 		return;
@@ -450,6 +460,48 @@ Client* Server::getClientByFD(int client_fd){
 			return *it;
 	}
 	return NULL;
+}
+
+void Server::handleSend(int client_fd, std::vector<std::string> params, Client* client){
+	// if (!client->isRegistered()) {
+	// 	sendClientError(client_fd, "451", params[0]);
+	// 	return;
+	// }
+
+	if (params.size() != 5){
+		if (params.size() < 5)
+			sendClientError(client_fd, "461", params[0]);
+		else if (params.size() > 5)
+			sendClientError(client_fd, "459", params[0]);
+		return;
+	}
+
+	int port;
+	try {
+		port = std::atoi(params[2].c_str());
+		if (port <= 0 || port > 65535)
+			throw ;
+	}
+	catch (...){
+		sendClientError(client_fd, "601", params[0]);
+		return;
+	}
+
+	ssize_t filesize;
+	try {
+		filesize = std::atol(params[4].c_str());
+	}
+	catch (...){
+		sendClientError(client_fd, "602", params[0]);
+		return;
+	}
+
+	struct sockaddr_in addr;
+	std::memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = htons(port);
+
 }
 
 void Server::handleKick(int client_fd, std::vector<std::string> params, Client* client){
@@ -656,20 +708,22 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 		client->add_channel_operator(new_channel);
 		this->_channels.push_back(new_channel);
 		int res2 = client->execute_command(params, _clients, _channels);
-		// if (res2 != 0)
-		// 	sendClientError();
-		(void)res2;
+		if (res2 != 0)
+		{
+			std::ostringstream oss;
+			oss << res2;
+			sendClientError(client_fd, oss.str() ,params[0]);
+		}
 	}
-	else if (res != 0 && res != 11)
-	{
+	else if (res != 0 && res != 11){
 		std::ostringstream oss;
 		oss << res;
-		sendClientError(client_fd, oss.str() ,params[0]);
-		// Si canal inexistant : 403
+		sendClientError(client_fd, oss.str() ,params[0]);		// Si canal inexistant : 403
+	}
 		// Si canal complet : 471
 		// Si canal sur invitation : 473
-	}
 
+	// debug
 	display_all_clients();
 	display_all_channels();
 }
@@ -692,7 +746,8 @@ void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Clien
 		sendClientError(client_fd, oss.str() ,params[0]);
 		// Si destinataire absent : 401
 		// Si pas de texte : 412
-	}}
+	}
+}
 
 void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
 	// if (!client->isRegistered()) {
@@ -726,10 +781,10 @@ void Server::handlePass(int client_fd, std::vector<std::string> params, Client* 
 	// 	return;
 	// }
 
-	//if (params[1] != _password){
-	//	sendClientError(client_fd, "464", params[0]);
-	//	return;
-	//}
+	if (params[1] != _password){
+		sendClientError(client_fd, "464", params[0]);
+		return;
+	}
 	// client->set_password(true);
 
 	(void)client_fd;
