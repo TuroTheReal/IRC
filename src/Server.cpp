@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 13:35:10 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/05 15:27:38 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,8 @@ void handleSignal(int signum){
 bool Server::isValidChannel(std::string chan){
 	const std::string not_in_first = "!#&+";
 	const std::string not_inside = " ,:\x07";
+	if (chan.empty())
+		return false;
 	if (not_in_first.find(chan[0]) == std::string::npos)
 		return false;
 	if (chan.size() > 50)
@@ -97,7 +99,7 @@ bool Server::isValidUsername(std::string user){
 }
 
 void  Server::initErrorCodes(){
-	_errorCodes["1"] = "ERREUR A REVOIR";
+	_errorCodes["331"] = "No topic is set";
 	_errorCodes["401"] = "No such nick/channel";
 	_errorCodes["402"] = "No such server";
 	_errorCodes["403"] = "No such channel";
@@ -106,6 +108,7 @@ void  Server::initErrorCodes(){
 	_errorCodes["411"] = "No recipient given (PRIVMSG)";
 	_errorCodes["412"] = "No text to send";
 	_errorCodes["421"] = "Unknown command";
+	_errorCodes["430"] = "Erroneous username";
 	_errorCodes["431"] = "No nickname given";
 	_errorCodes["432"] = "Erroneous nickname";
 	_errorCodes["433"] = "Nickname is already in use";
@@ -202,7 +205,7 @@ void Server::sendWelcome(int client_fd, Client* client){
 	if (sent4 < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 
-	// client->set_authentification(true);
+	client->set_autentification(true);
 }
 
 void Server::newClient(){
@@ -669,10 +672,10 @@ Client* Server::getClientByFD(int client_fd){
 // }
 
 void Server::handleKick(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->isRegistered()) {
-	// 	sendClientError(client_fd, "451", params[0]);
-	// 	return;
-	// }
+	if (!client->isRegistered()) {
+		sendClientError(client_fd, "451", params[0]);
+		return;
+	}
 
 	if (params.size() < 3 || params.size() > 4 ){
 		if (params.size() < 3)
@@ -683,21 +686,18 @@ void Server::handleKick(int client_fd, std::vector<std::string> params, Client* 
 	}
 
 	int res = client->execute_command(params, _clients, _channels);
-	if (res != 0 && res != 11){
+	if (res != 0){
 		std::ostringstream oss;
 		oss << res;
 		sendClientError(client_fd, oss.str() ,params[0]);
-		// Si canal inexistant : 403
-		// Si utilisateur pas sur le canal : 441
-		// Si non opérateur : 482
 	}
 }
 
 void Server::handleUser(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->hasPassword()) {
-	// 	sendClientError(client_fd, "464", params[0]);
-	// 	return;
-	// }
+	if (!client->get_bool_pass()) {
+		sendClientError(client_fd, "464", params[0]);
+		return;
+	}
 
 	if (params.size() != 5){
 		sendClientError(client_fd, "461", params[0]);
@@ -705,30 +705,28 @@ void Server::handleUser(int client_fd, std::vector<std::string> params, Client* 
 	}
 
 	if (!isValidUsername(params[1])){
-		sendClientError(client_fd, "432", params[0]);
+		sendClientError(client_fd, "430", params[0]);
 		return;
 	}
 
 	int res = client->execute_command(params, _clients, _channels);
-	(void)res;
-	// if (res != 0 && res != 11){
-	// 	std::ostringstream oss;
-	// 	oss << res;
-	// 	sendClientError(client_fd, oss.str() ,params[0]);
-		// Si déjà enregistré : 462
-		// return;
-	// }
+	if (res != 0){
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+		return;
+	}
 
-	// client->set_user(true);
-	// if (client->isRegistered());
-	// 	sendWelcome(client_fd, client);
+	client->set_bool_user(true);
+	if (client->isRegistered() && client->get_autentification() == false)
+		sendWelcome(client_fd, client);
 }
 
 void Server::handleNick(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->hasPassword()) {
-	// 	sendClientError(client_fd, "464", params[0]);
-	// 	return;
-	// }
+	if (!client->get_bool_pass()) {
+		sendClientError(client_fd, "464", params[0]);
+		return;
+	}
 
 	if (params.size() != 2){
 		if (params.size() < 2)
@@ -744,19 +742,16 @@ void Server::handleNick(int client_fd, std::vector<std::string> params, Client* 
 	}
 
 	int res = client->execute_command(params, _clients, _channels);
-	(void)res;
-	// if (res != 0 && res != 11){
-	// 	std::ostringstream oss;
-	// 	oss << res;
-	// 	sendClientError(client_fd, oss.str() ,params[0]);
-	// Si pseudo déjà utilisé : 433
-	// return;
-	// }
+	if (res != 0){
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+		return;
+	}
 
-	// client->set_nick(true);
-	// if (client->isRegistered());
-	// 	sendWelcome(client_fd, client);
-	sendWelcome(client_fd, client);
+	client->set_bool_nick(true);
+	if (client->isRegistered() && client->get_autentification() == false)
+		sendWelcome(client_fd, client);
 }
 
 void Server::handlePing(int client_fd, std::vector<std::string> params){
@@ -804,26 +799,35 @@ void Server::handleCap(int client_fd, std::vector<std::string> params, Client* c
 }
 
 void Server::handleInvite(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->isRegistered()) {
-	// 	sendClientError(client_fd, "451", params[0]);
-	// 	return;
-	// }
+	if (!client->isRegistered()) {
+		sendClientError(client_fd, "451", params[0]);
+		return;
+	}
 
-	if (params.size() != 5){
+	if (params.size() != 3){
 		sendClientError(client_fd, "461", params[0]);
 		return;
 	}
-	// Si utilisateur inexistant : 401
-	// Si canal inexistant : 403
-	// Si non opérateur (si +i) : 482
-	(void)client;
+
+	if (!isValidChannel(params[1])){
+		sendClientError(client_fd, "476", params[1]);
+		return;
+	}
+
+	int res = client->execute_command(params, _clients, _channels);
+	if (res != 0){
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+		return;
+	}
 }
 
 void Server::handleTopic(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->isRegistered()) {
-	// 	sendClientError(client_fd, "451", params[0]);
-	// 	return;
-	// }
+	if (!client->isRegistered()) {
+		sendClientError(client_fd, "451", params[0]);
+		return;
+	}
 
 	if (params.size() < 2 || params.size() > 3 ){
 		if (params.size() < 2)
@@ -832,17 +836,26 @@ void Server::handleTopic(int client_fd, std::vector<std::string> params, Client*
 			sendClientError(client_fd, "459", params[0]);
 		return;
 	}
-	// Si canal inexistant : 403
-	// Si utilisateur pas sur le canal : 442
-	// Si non opérateur (si +t) : 482
-	(void)client;
+
+	if (!isValidChannel(params[1])){
+		sendClientError(client_fd, "476", params[1]);
+		return;
+	}
+
+	int res = client->execute_command(params, _clients, _channels);
+	if (res != 0){
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+		return;
+	}
 }
 
 void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->isRegistered()) {
-	// 	sendClientError(client_fd, "451", params[0]);
-	// 	return;
-	// }
+	if (!client->isRegistered()) {
+		sendClientError(client_fd, "451", params[0]);
+		return;
+	}
 
 	if (params.size() < 2 || params.size() > 3 ){
 		if (params.size() < 2)
@@ -861,7 +874,7 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 	if (res == 11){
 		std::string new_channel_name = params[1];
 		new_channel_name.erase(0,1);
-		Channel* new_channel = new Channel(new_channel_name, client);
+		Channel* new_channel = new  Channel(new_channel_name, client);
 		client->set_operator(true);
 		client->add_channel_operator(new_channel);
 		this->_channels.push_back(new_channel);
@@ -873,53 +886,57 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 			sendClientError(client_fd, oss.str() ,params[0]);
 		}
 	}
-	else if (res != 0 && res != 11){
+	else if (res != 0){
 		std::ostringstream oss;
 		oss << res;
-		sendClientError(client_fd, oss.str() ,params[0]);		// Si canal inexistant : 403
+		sendClientError(client_fd, oss.str() ,params[0]);
 	}
-		// Si canal complet : 471
-		// Si canal sur invitation : 473
 }
 
 void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->isRegistered()) {
-	// 	sendClientError(client_fd, "451", params[0]);
-	// 	return;
-	// }
-
-	if (params.size() != 3){
-		sendClientError(client_fd, "411", params[0]); // ereur a check
+	if (!client->isRegistered()) {
+		sendClientError(client_fd, "451", params[0]);
 		return;
 	}
+
+	if (params.size() != 3){
+		sendClientError(client_fd, "411", params[0]);
+		return;
+	}
+
 	int res = client->execute_command(params, _clients, _channels);// ereur a check
-	if (res != 0 && res != 11)
+	if (res != 0 )
 	{
 		std::ostringstream oss;
 		oss << res;
 		sendClientError(client_fd, oss.str() ,params[0]);
-		// Si destinataire absent : 401
-		// Si pas de texte : 412
 	}
 }
 
 void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->isRegistered()) {
-	// 	sendClientError(client_fd, "451", params[0]);
-	// 	return;
-	// }
-
-	if (params.size() < 2 || params.size() > 5 ){
-		if (params.size() < 2)
-			sendClientError(client_fd, "461", params[0]);
-		if (params.size() > 5)
-			sendClientError(client_fd, "459", params[0]);
+	if (!client->isRegistered()) {
+		sendClientError(client_fd, "451", params[0]);
 		return;
 	}
-	// Si mode inconnu : 472
-	// Si mode utilisateur inconnu : 501
+
+	if (params.size() < 2){
+		sendClientError(client_fd, "461", params[0]);
+		return;
+	}
+
+	if (!isValidChannel(params[1])){
+		sendClientError(client_fd, "476", params[1]);
+		return;
+	}
+
+	int res = client->execute_command(params, _clients, _channels);
+	if (res != 0 )
+	{
+		std::ostringstream oss;
+		oss << res;
+		sendClientError(client_fd, oss.str() ,params[0]);
+	}
 	// Si tentative de modifier le mode d'un autre utilisateur : 502
-	(void)client;
 }
 
 void Server::handlePass(int client_fd, std::vector<std::string> params, Client* client){
@@ -928,17 +945,17 @@ void Server::handlePass(int client_fd, std::vector<std::string> params, Client* 
 		return;
 	}
 
-	// if (client->has_password()){
-	// 	sendClientError(client_fd, "462", params[0]);
-	// 	return;
-	// }
+	if (client->get_bool_pass()){
+		sendClientError(client_fd, "462", params[0]);
+		return;
+	}
 
 	if (params[1] != _password){
 		sendClientError(client_fd, "464", params[0]);
 		return;
 	}
-	// client->set_password(true);
-	(void)client;
+
+	client->set_bool_pass(true);
 }
 
 void Server::handleQuit(int client_fd){

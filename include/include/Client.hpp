@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
+/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:25:10 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 13:57:57 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/05 13:24:19 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,15 +32,12 @@ class Client
         Client();
         Client(int socket);
         ~Client();
-
+        
         // Set attributs
         int set_nickname(std::string nickname, std::vector<Client*> clients, std::vector<Channel*>channels);
         int set_username(std::vector<std::string> input, std::vector<Client*> clients, std::vector<Channel*>channels);
         void set_operator(bool is_operator);
         void set_autentification(bool reponse);
-		void set_bool_nick(bool response);
-		void set_bool_user(bool response);
-		void set_bool_pass(bool response);
 
         // Get attributs
         std::string get_nickname();
@@ -48,11 +45,6 @@ class Client
         int get_socket();
         int is_operator(std::string channel_name);
         bool get_autentification();
-		bool get_bool_pass();
-		bool get_bool_nick();
-		bool get_bool_user();
-		bool isRegistered();
-
 
         // Gestion des channels
         int join_channel(std::vector<std::string> input, std::vector<Channel*> &channels);
@@ -92,9 +84,6 @@ class Client
         std::string _realname;
         bool _is_authenticated;
         bool _is_operator;
-		bool _hasPassword;
-		bool _hasNick;
-		bool _hasUser;
         std::vector<Channel*> _invited_channels;
         std::vector<Channel*> _channels;
         std::vector<Channel*> _operator_channels;

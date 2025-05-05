@@ -3,31 +3,26 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
+/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 15:25:11 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 13:34:30 by dsindres         ###   ########.fr       */
+/*   Updated: 2025/04/24 14:47:14 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/Channel.hpp"
 #include "../include/Client.hpp"
 #include "../include/Command.hpp"
-#include <algorithm> 
 
 Channel::Channel(){};
 
 Channel::Channel(std::string name, Client *opera)
 {
     this->_name = name;
-    //this->opera = opera;
-    this->_topic = "default";
+    this->opera = opera;
     this->_password = "";
     this->_on_invit = false;
-    this->_is_restriction_topic = false;
     this->_limit = -1;
-    this->_operator_clients.push_back(opera);
-
 }
 
 Channel::~Channel()
@@ -39,7 +34,6 @@ Channel::~Channel()
             (*it)->leave_channel_from_dest_channel(this);
         it++;
     }
-    this->_operator_clients.clear();
     this->_clients.clear();
 }
 
@@ -50,23 +44,9 @@ std::string Channel::get_name()
     return (this->_name);
 }
 
-bool Channel::get_operator_bool()
+Client *Channel::get_operator()
 {
-    if (this->_operator_clients.empty())
-        return (false);
-    return (true);
-}
-
-Client *Channel::get_operator(Client *client)
-{
-    std::vector<Client*>::iterator it = _operator_clients.begin();
-    while (it != _operator_clients.end())
-    {
-        if(client == (*it))
-            return (*it);
-        it++;
-    }
-    return (NULL);
+    return (this->opera);
 }
 
 std::string Channel::get_pass()
@@ -84,11 +64,6 @@ bool Channel::get_on_invit()
     return (this->_on_invit);
 }
 
-bool Channel::get_restriction_topic()
-{
-    return (this->_is_restriction_topic);
-}
-
 Client *Channel::get_client(std::string client_name)
 {
     std::vector<Client*>::iterator it = this->_clients.begin();
@@ -103,48 +78,9 @@ Client *Channel::get_client(std::string client_name)
     return NULL;
 }
 
-void Channel::set_operator(Client* client)
+void Channel::set_operator()
 {
-    std::vector<Client*>::iterator it = _operator_clients.begin();
-    while(it != _operator_clients.end())
-    {
-        if (*it == client)
-        {
-            _operator_clients.erase(it);
-            return ;
-        }
-        it++;
-    }
-}
-
-void Channel::set_pass(std::string pass)
-{
-    this->_password = pass;
-}
-
-void Channel::set_limit(int limit)
-{
-    this->_limit= limit;
-}
-
-void Channel::set_restriction_topic(bool response)
-{
-    this->_is_restriction_topic = response;
-}
-
-std::string Channel::get_topic()
-{
-    return (this->_topic);
-}
-
-void Channel::set_on_invit(bool reponse)
-{
-    this->_on_invit = reponse;
-}
-
-void Channel::set_topic(std::string topic_message)
-{
-    this->_topic = topic_message;
+    this->opera = NULL;
 }
 
 //----------------------------- METHODES ------------------------------------
@@ -185,18 +121,7 @@ void    Channel::send_message(std::string const &message)
     std::vector<Client*>:: iterator it = _clients.begin();
     while (it != _clients.end())
     {
-        (*it)->receive_message(message, (*it)->get_socket());
-        it++;
-    }
-}
-
-void    Channel::send_message_except(std::string const &message, Client *client)
-{
-    std::vector<Client*>:: iterator it = _clients.begin();
-    while (it != _clients.end())
-    {
-        if ((*it) != client)
-            (*it)->receive_message(message, (*it)->get_socket());
+        (*it)->receive_message(message);
         it++;
     }
 }
@@ -213,52 +138,16 @@ int Channel::get_nbr_of_client()
     return (res);
 }
 
-void    Channel::add_operator(Client *client)
-{
-    this->_operator_clients.push_back(client);
-}
-
-void    Channel::supp_operator(Client *client)
-{
-    std::vector<Client*>::iterator it = this->_operator_clients.begin();
-    while (it != this->_operator_clients.end())
-    {
-        if ((*it) == client)
-        {
-            this->_operator_clients.erase(it);
-            return ;
-        }
-        it++;
-    }
-}
-
-std::string Channel::join_message()
-{
-    std::vector<Client*>::iterator it = this->_clients.begin();
-    std::string mess = "";
-    while (it != this->_clients.end())
-    {
-        mess = mess + " " + (*it)->get_nickname();
-        it++;
-    }
-    return (mess);
-}
-
 //----------------------------- DEBUG ------------------------------------
 
 void Channel::get_all_clients()
 {
-    std::string sp = "             ";
     std::vector<Client*>::iterator it = this->_clients.begin();
     while(it != _clients.end())
     {
-        std::cout << "    client = " << (*it)->get_nickname() << std::endl;
+        std::cout << "                 " << (*it)->get_username() << std::endl;
         it++;
     }
-    std::vector<Client*>::iterator ite = this->_operator_clients.begin();
-    while(ite != _operator_clients.end())
-    {
-        std::cout << "       ope = " << (*it)->get_nickname() << std::endl;
-        ite++;
-    }
 }
+
+// COMMENT TU GERES SI LE CLIENT QUITTE avec QUIT, TU LAISSE DANS LE CHANNEL OU PAS ?
