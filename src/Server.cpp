@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/30 16:10:24 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/05 13:35:10 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -131,6 +131,7 @@ void  Server::initErrorCodes(){
 	_errorCodes["502"] = "Cannot change mode for other users";
 	_errorCodes["601"] = "Invalid port number";
 	_errorCodes["602"] = "Invalid file size";
+	_errorCodes["603"] = "Not the destinator";
 }
 
 void	Server::getHostName(){
@@ -292,6 +293,12 @@ void Server::cleanup(){
 			safeClose(it->fd);
 		_fds.clear();
 	}
+
+	if (!_pendingTransfers.empty()) {
+		for (std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.begin(); it != _pendingTransfers.end(); it++)
+			_pendingTransfers.erase(it);
+		_pendingTransfers.clear();
+	}
 }
 
 void Server::handleClient(size_t index){
@@ -347,7 +354,7 @@ void Server::parseCommand(std::string msg, int client_fd){
 
 		std::string token;
 		while (iss >> token) {
-		    if (token[0] == ':') {
+			if (token[0] == ':') {
 				std::string start = token.substr(1);
 				std::string rest;
 				getline(iss, rest);
@@ -410,13 +417,20 @@ void Server::parseCommand(std::string msg, int client_fd){
 		handleMode(client_fd, params, client);
 	else if (cmd == "PASS") // 2
 		handlePass(client_fd, params, client);
-	else if (cmd == "QUIT") // 1 ou 2
+	else if (cmd == "QUIT")
 		handleQuit(client_fd);
-	else if (cmd == "SEND") // 2
-		handleSend(client_fd, params, client);
+	else if (cmd == "XX")
+		client->execute_command(params, _clients, _channels);
+	else if (cmd == "XXX")
+		client->execute_command(params, _clients, _channels);
+	// else if (cmd == "SEND")
+	// 	handleSend(client_fd, params, client);
+	// else if (cmd == "ACCEPT")
+	// 	handleAccept(client_fd, params, client);
+	// else if (cmd == "DECLINE")
+	// 	handleDecline(client_fd, params, client);
 	else
 		sendClientError(client_fd, "421", cmd);
-	(void)client_fd;
 }
 
 void Server::handleCommandBot(int client_fd, std::vector<std::string> params, Client* client){
@@ -436,9 +450,9 @@ void Server::handleCommandBot(int client_fd, std::vector<std::string> params, Cl
 	else if (cmd == "HELP")
 		to_ret = "Commands are : !HELP, !TIME & !WEATHER";
 	else if (cmd == "WHOAMI"){
-		if (!client->get_nickname().empty()) // remplacer par booleen
+		if (!client->get_nickname().empty()) // remplacer par booleen has_nick
 			to_ret = "Your nick is: " + client->get_nickname();
-		if (!client->get_username().empty()) // remplacer par booleen
+		if (!client->get_username().empty()) // remplacer par booleen has_user
 			to_ret += "\nYour user is: " + client->get_username();
 	}
 	else {
@@ -462,47 +476,197 @@ Client* Server::getClientByFD(int client_fd){
 	return NULL;
 }
 
-void Server::handleSend(int client_fd, std::vector<std::string> params, Client* client){
-	// if (!client->isRegistered()) {
-	// 	sendClientError(client_fd, "451", params[0]);
-	// 	return;
-	// }
+// void Server::handleSend(int client_fd, std::vector<std::string> params, Client* client){
+// 	// if (!client->isRegistered()) {
+// 	// 	sendClientError(client_fd, "451", params[0]);
+// 	// 	return;
+// 	// }
 
-	if (params.size() != 5){
-		if (params.size() < 5)
-			sendClientError(client_fd, "461", params[0]);
-		else if (params.size() > 5)
-			sendClientError(client_fd, "459", params[0]);
-		return;
-	}
+// 	if (params.size() != 5){
+// 		if (params.size() < 5)
+// 			sendClientError(client_fd, "461", params[0]);
+// 		else if (params.size() > 5)
+// 			sendClientError(client_fd, "459", params[0]);
+// 		return;
+// 	}
 
-	int port;
-	try {
-		port = std::atoi(params[2].c_str());
-		if (port <= 0 || port > 65535)
-			throw ;
-	}
-	catch (...){
-		sendClientError(client_fd, "601", params[0]);
-		return;
-	}
+// 	int port;
+// 	try {
+// 		port = std::atoi(params[2].c_str());
+// 		if (port <= 0 || port > 65535)
+// 			throw std::exception();
+// 	}
+// 	catch (...){
+// 		sendClientError(client_fd, "601", params[0]);
+// 		return;
+// 	}
 
-	ssize_t filesize;
-	try {
-		filesize = std::atol(params[4].c_str());
-	}
-	catch (...){
-		sendClientError(client_fd, "602", params[0]);
-		return;
-	}
+// 	ssize_t filesize;
+// 	try {
+// 		filesize = std::atol(params[4].c_str());
+// 		if (filesize < 0)
+// 			throw std::exception();
+// 	}
+// 	catch (...){
+// 		sendClientError(client_fd, "602", params[0]);
+// 		return;
+// 	}
 
-	struct sockaddr_in addr;
-	std::memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = INADDR_ANY;
-	addr.sin_port = htons(port);
+// 	std::string nick = params[1];
+// 	Client* target = NULL;
+// 	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+// 		if ((*it)->get_nickname() == nick) {
+// 			target = *it;
+// 			break;
+// 		}
+// 	}
 
-}
+// 	if (!target) {
+// 		sendClientError(client_fd, "401", nick);
+// 		return;
+// 	}
+
+// 	std::string filename = params[3];
+
+// 	struct sockaddr_in client_addr;
+// 	socklen_t addr_len = sizeof(client_addr);
+// 	getpeername(client_fd, (struct sockaddr*)&client_addr, &addr_len);
+// 	uint32_t ip_num = ntohl(client_addr.sin_addr.s_addr);
+
+// 	std::string transfer_id = client->get_nickname() + "_" + nick + "_" + filename + "_" + std::to_string(time(NULL));
+
+// 	PendingTransfer transfer;
+// 	transfer.sender_nick = client->get_nickname();
+// 	transfer.receiver_nick = nick;
+// 	transfer.filename = filename;
+// 	transfer.ip_address = ip_num;
+// 	transfer.port = port;
+// 	transfer.filesize = filesize;
+
+// 	_pendingTransfers[transfer_id] = transfer;
+
+// 	std::stringstream dcc_msg;
+
+// 	dcc_msg << "\001DCC SEND " << filename << " " << ip_num << " " << port << " " << filesize << " " << transfer_id << "\001";
+
+// 	std::string privmsg = ":" + client->get_nickname() + "!" + client->get_username() + "@" + _host_name + " PRIVMSG " + nick + " :" + dcc_msg.str() + "\r\n";
+// 	ssize_t sent = send(target->get_socket(), privmsg.c_str(), privmsg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	std::string info_msg = ":" + _server_name + " NOTICE " + nick + " :Use ACCEPT " + transfer_id + " to accept or DECLINE " + transfer_id + " to refuse the transfer.\r\n";
+// 	sent = send(target->get_socket(), info_msg.c_str(), info_msg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	std::string confirm = ":" + _server_name + " NOTICE " + client->get_nickname() + " :DCC SEND request sent to " + nick + " (ID: " + transfer_id + ")\r\n";
+// 	sent = send(client_fd, confirm.c_str(), confirm.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+// }
+
+// void Server::handleAccept(int client_fd, std::vector<std::string> params, Client* client){
+// 	if (params.size() != 2) {
+// 		sendClientError(client_fd, "461", params[0]);
+// 		return;
+// 	}
+
+// 	std::string transfer_id = params[1];
+
+// 	std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.find(transfer_id);
+// 	if (it == _pendingTransfers.end()){
+// 		sendClientError(client_fd, "461", params[0]);
+// 	}
+
+// 	PendingTransfer& transfer = it->second;
+// 	if (transfer.receiver_nick != client->get_nickname()){
+// 		sendClientError(client_fd, "603", params[0]);
+// 		return;
+// 	}
+
+// 	uint32_t ip = transfer.ip_address;
+// 	std::string ip_str = std::to_string((ip >> 24) & 0xFF) + "." +
+// 							std::to_string((ip >> 16) & 0xFF) + "." +
+// 							std::to_string((ip >> 8) & 0xFF) + "." +
+// 							std::to_string(ip & 0xFF);
+
+// 	std::string accept_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
+// 							" :Connecton init to " + ip_str + ":" +
+// 							std::to_string(transfer.port) + " to receive " +
+// 							transfer.filename + "\r\n";
+
+// 	ssize_t sent = send(client_fd, accept_msg.c_str(), accept_msg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	Client *sender = NULL;
+// 	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+// 		if ((*it)->get_nickname() == transfer.sender_nick) {
+// 			sender = *it;
+// 			break;
+// 		}
+// 	}
+
+// 	if (sender) {
+// 		std::string sender_msg = ":" + _server_name + " NOTICE " + sender->get_nickname() +
+// 								" :" + client->get_nickname() + " has accepted to receive " +
+// 								transfer.filename + "\r\n";
+
+// 		sent = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
+// 		if (sent < 0)
+// 			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+// 	}
+
+// 	_pendingTransfers.erase(transfer_id);
+// }
+
+// void Server::handleDecline(int client_fd, std::vector<std::string> params, Client* client){
+// 	if (params.size() != 2) {
+// 		sendClientError(client_fd, "461", params[0]);
+// 		return;
+// 	}
+
+// 	std::string transfer_id = params[1];
+
+// 	std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.find(transfer_id);
+// 	if (it == _pendingTransfers.end()){
+// 		sendClientError(client_fd, "461", params[0]);
+// 	}
+
+// 	PendingTransfer& transfer = it->second;
+// 	if (transfer.receiver_nick != client->get_nickname()){
+// 		sendClientError(client_fd, "603", params[0]);
+// 		return;
+// 	}
+
+// 	std::string decline_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
+// 								" :You refuse the transfert of " + transfer.filename +
+// 								" from " + transfer.sender_nick + "\r\n";
+
+// 	ssize_t sent = send(client_fd, decline_msg.c_str(), decline_msg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	Client *sender = NULL;
+// 	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+// 		if ((*it)->get_nickname() == transfer.sender_nick) {
+// 			sender = *it;
+// 			break;
+// 		}
+// 	}
+
+// 	if (sender) {
+// 		std::string sender_msg = ":" + _server_name + " NOTICE " + sender->get_nickname() +
+// 									" :" + client->get_nickname() + " has refuse to receive " +
+// 									transfer.filename + "\r\n";
+
+// 		sent = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
+// 		if (sent < 0)
+// 			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+// 	}
+
+// 	_pendingTransfers.erase(transfer_id);
+// }
 
 void Server::handleKick(int client_fd, std::vector<std::string> params, Client* client){
 	// if (!client->isRegistered()) {
@@ -652,9 +816,7 @@ void Server::handleInvite(int client_fd, std::vector<std::string> params, Client
 	// Si utilisateur inexistant : 401
 	// Si canal inexistant : 403
 	// Si non opérateur (si +i) : 482
-	(void)client_fd;
 	(void)client;
-	(void)params;
 }
 
 void Server::handleTopic(int client_fd, std::vector<std::string> params, Client* client){
@@ -673,9 +835,7 @@ void Server::handleTopic(int client_fd, std::vector<std::string> params, Client*
 	// Si canal inexistant : 403
 	// Si utilisateur pas sur le canal : 442
 	// Si non opérateur (si +t) : 482
-	(void)client_fd;
 	(void)client;
-	(void)params;
 }
 
 void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* client){
@@ -691,8 +851,6 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 			sendClientError(client_fd, "459", params[0]);
 		return;
 	}
-	display_all_clients();
-	display_all_channels();
 
 	if (!isValidChannel(params[1])){
 		sendClientError(client_fd, "476", params[1]);
@@ -722,10 +880,6 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 	}
 		// Si canal complet : 471
 		// Si canal sur invitation : 473
-
-	// debug
-	display_all_clients();
-	display_all_channels();
 }
 
 void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Client* client){
@@ -765,9 +919,7 @@ void Server::handleMode(int client_fd, std::vector<std::string> params, Client* 
 	// Si mode inconnu : 472
 	// Si mode utilisateur inconnu : 501
 	// Si tentative de modifier le mode d'un autre utilisateur : 502
-	(void)client_fd;
 	(void)client;
-	(void)params;
 }
 
 void Server::handlePass(int client_fd, std::vector<std::string> params, Client* client){
@@ -786,10 +938,7 @@ void Server::handlePass(int client_fd, std::vector<std::string> params, Client* 
 		return;
 	}
 	// client->set_password(true);
-
-	(void)client_fd;
 	(void)client;
-	(void)params;
 }
 
 void Server::handleQuit(int client_fd){
@@ -853,39 +1002,6 @@ Server::~Server(){
 
 /*******************************************************************/
 
-
-void Server::display_all_channels()
-{
-	std::vector<Channel*>::iterator it = _channels.begin();
-	std::cout << std::endl;
-	while(it != _channels.end())
-	{
-		Client *ope = (*it)->get_operator();
-		std::cout << "  Channel : " << (*it)->get_name() << std::endl;
-		std::cout << "   operator --> " << ope->get_username() << std::endl;
-		(*it)->get_all_clients();
-		std::cout << std::endl;
-		it++;
-	}
-	std::cout << "  -------- end of channels ----------" << std::endl << std::endl;
-}
-
-
-void Server::display_all_clients()
-{
-	std::vector<Client*>::iterator ite = _clients.begin();
-	std::cout << std::endl;
-	while(ite != _clients.end())
-	{
-		std::cout << "  Client : " << (*ite)->get_username() << std::endl;
-		(*ite)->get_operator();
-		(*ite)->get_channel();
-		(*ite)->get_invitation();
-		std::cout << std::endl;
-		ite++;
-	}
-	std::cout << "  -------- end of clients ----------" << std::endl << std::endl;
-}
 
 // demander qu est ce quune registration complete, et si apres quelle soit complete on peut encore faire les commandes pour se register ?
 // USERHOST cest quoi ?

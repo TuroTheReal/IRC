@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/30 15:32:42 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/05 13:20:30 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,16 +38,27 @@ class Server {
 		~Server();
 
 	private:
-		int									_port;
-		std::string							_password;
-		int									_server_socket;
-		std::string							_server_name;
-		std::string							_host_name;
-		std::vector<pollfd>					_fds;
-		std::map<int, std::string>			_clientBuffers;
-		std::map<std::string, std::string>	_errorCodes;
-		std::vector<Client*>				_clients;
-		std::vector<Channel*>				_channels;
+
+		struct PendingTransfer {
+			std::string sender_nick;
+			std::string receiver_nick;
+			std::string filename;
+			uint32_t ip_address;
+			int port;
+			size_t filesize;
+		};
+
+		int										_port;
+		std::string								_password;
+		int										_server_socket;
+		std::string								_server_name;
+		std::string								_host_name;
+		std::vector<pollfd>						_fds;
+		std::map<int, std::string>				_clientBuffers;
+		std::map<std::string, std::string>		_errorCodes;
+		std::vector<Client*>					_clients;
+		std::vector<Channel*>					_channels;
+		std::map<std::string, PendingTransfer>	_pendingTransfers;
 
 		void	createSocket();
 		void	bindSocket();
@@ -79,7 +90,9 @@ class Server {
 		void	handleCap(int, std::vector<std::string>, Client*);
 		void	handleUser(int, std::vector<std::string>, Client*);
 		void	handleTopic(int, std::vector<std::string>, Client*);
-		void	handleSend(int, std::vector<std::string>, Client*);
+		// void	handleSend(int, std::vector<std::string>, Client*);
+		// void	handleAccept(int, std::vector<std::string>, Client*);
+		// void	handleDecline(int, std::vector<std::string>, Client*);
 		void	handlePing(int, std::vector<std::string>);
 		void	handleQuit(int);
 
@@ -89,6 +102,6 @@ class Server {
 		bool	isValidUsername(std::string);
 
 		// debug
-		void	display_all_clients();
-		void	display_all_channels();
+		void	handle2X(int, std::vector<std::string>, Client*);
+		void	handle3X(int, std::vector<std::string>, Client*);
 };
