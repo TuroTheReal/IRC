@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 15:25:11 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 11:54:37 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 13:29:36 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -258,7 +258,7 @@ void Channel::get_all_clients()
     std::vector<Client*>::iterator ite = this->_operator_clients.begin();
     while(ite != _operator_clients.end())
     {
-        std::cout << "       ope = " << (*it)->get_nickname() << std::endl;
+        std::cout << "       ope = " << (*ite)->get_nickname() << std::endl;
         ite++;
     }
 }

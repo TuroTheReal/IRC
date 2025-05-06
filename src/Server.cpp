@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 11:53:34 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 14:35:45 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -462,6 +462,39 @@ void Server::parseCommand(std::string msg, int client_fd){
 		sendClientError(client_fd, "421", cmd);
 }
 
+void Server::handleCommandBotPriv(int client_fd, std::vector<std::string> params, Client* client){
+	std::string to_ret;
+	std::string cmd = params[2].substr(1);
+
+	if (cmd == "TIME"){
+		time_t now = time(0);
+		char* dt = ctime(&now);
+		to_ret = "Current time: " + std::string(dt);
+		if (!to_ret.empty() && to_ret[to_ret.length()-1] == '\n') {
+			to_ret.erase(to_ret.length()-1);
+		}
+	}
+	else if (cmd == "WEATHER")
+		to_ret = "Today's weather: 25°C, sunny.";
+	else if (cmd == "HELP")
+		to_ret = "Commands are : !HELP, !TIME & !WEATHER";
+	else if (cmd == "WHOAMI"){
+		if (!client->get_nickname().empty()) // remplacer par booleen has_nick
+			to_ret = "Your nick is: " + client->get_nickname();
+		if (!client->get_username().empty()) // remplacer par booleen has_user
+			to_ret += "\nYour user is: " + client->get_username();
+	}
+	else {
+		sendClientError(client_fd, "421", cmd + " :Use !HELP to see all the bot commands");
+		return;
+	}
+
+	std::string response = ":" + _server_name + "_bot PRIVMSG " + client->get_nickname() + " :" + to_ret + "\r\n";
+	ssize_t sent = send(client_fd, response.c_str(), response.size(), 0);
+	if (sent < 0)
+		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+}
+
 void Server::handleCommandBot(int client_fd, std::vector<std::string> params, Client* client){
 	std::string to_ret;
 	std::string cmd = params[0].substr(1);
@@ -835,7 +868,7 @@ void Server::handleInvite(int client_fd, std::vector<std::string> params, Client
 		return;
 	}
 
-	if (!isValidChannel(params[1])){
+	if (!isValidChannel(params[2])){
 		sendClientError(client_fd, "476", params[1]);
 		return;
 	}
@@ -931,6 +964,12 @@ void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Clien
 
 	if (params.size() != 3){
 		sendClientError(client_fd, "411", params[0]);
+		return;
+	}
+
+	if (params[2][0] == '!'){
+		std::transform(params[2].begin(), params[2].end(), params[2].begin(), ::toupper);
+		handleCommandBotPriv(client_fd, params, client);
 		return;
 	}
 

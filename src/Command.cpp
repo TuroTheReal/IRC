@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/17 13:07:04 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 10:17:40 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 13:41:44 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,6 @@ int Command::kick(std::vector<std::string> input, std::vector<Client*> clients, 
             Client *test = (*it)->get_client(input[2]);
             if (test != NULL)
             {
-                test->leave_channel(channel_name, channels);
                 if (input.size() > 3)
                 {
                     //std::cout << input[2] << " is ejected from " << channel_name << " channel because " << input[3] << std::endl;
@@ -54,6 +53,7 @@ int Command::kick(std::vector<std::string> input, std::vector<Client*> clients, 
                     message = ":" + client->get_nickname() + "!" + client->get_username() + "@localhost KICK #" + channel_name + " " + test->get_username();
                     (*it)->send_message(message);
                 }
+				test->leave_channel(channel_name, channels);
                 return (0);
             }
             //std::cout << "This client is not in this channel" << std::endl;

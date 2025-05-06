@@ -1,0 +1,9 @@
+join
+mode
+INVITE
+KICK checker jump fonction client::kick, msg a tt le monde zizi
+QUIT
+ctrl C
+
+
+bot ok avec privmsg et normal mais pas ok avec irssi
