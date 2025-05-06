@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 14:35:45 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 16:10:42 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -484,12 +484,10 @@ void Server::handleCommandBotPriv(int client_fd, std::vector<std::string> params
 		if (!client->get_username().empty()) // remplacer par booleen has_user
 			to_ret += "\nYour user is: " + client->get_username();
 	}
-	else {
-		sendClientError(client_fd, "421", cmd + " :Use !HELP to see all the bot commands");
-		return;
-	}
+	else
+		to_ret += "Unknow command :Use !HELP to see all the bot commands";
 
-	std::string response = ":" + _server_name + "_bot PRIVMSG " + client->get_nickname() + " :" + to_ret + "\r\n";
+	std::string response = ":" + _server_name + "_bot PRIVMSG " + params[1] + " :" + to_ret + "\r\n";
 	ssize_t sent = send(client_fd, response.c_str(), response.size(), 0);
 	if (sent < 0)
 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));

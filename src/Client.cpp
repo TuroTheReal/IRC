@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 13:12:33 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 14:50:26 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 15:28:03 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -706,9 +706,3 @@ void Client::XXX(std::vector<std::string> input, std::vector<Channel*>channels)
         it++;
     }
 }
-
-valgrind ./irc <port> <pass>
-
-sur un autre terminal
-nc localhost <port>
-pass nick/user etc dermerde toi tes un grand garcon ptit zizi
