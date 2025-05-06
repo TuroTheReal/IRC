@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 13:20:30 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 11:51:37 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -100,6 +100,8 @@ class Server {
 		bool	isValidChannel(std::string);
 		bool	isValidNickname(std::string);
 		bool	isValidUsername(std::string);
+		bool	isNotTakenChannel(std::string);
+
 
 		// debug
 		void	handle2X(int, std::vector<std::string>, Client*);

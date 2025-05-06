@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 13:12:33 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 10:17:14 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 11:58:36 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -566,7 +566,7 @@ void    Client::receive_message(std::string const &message, int socket)
 {
     std::string full_message = message + "\r\n";
     int bytes = send(socket, message.c_str(), message.length(), 0);
-    if (bytes > 0)
+    if (bytes < 0)
         throw std::runtime_error(std::string("send: ") + std::strerror(errno));
 }
 
@@ -623,6 +623,21 @@ void Client::join_message(Channel *channel)
     message3 = ":IRC 366 " + this->_nickname + " #" + channel->get_name() + " :" + "End of /NAMES list.";
     this->receive_message(message3, this->_socket);
 }
+
+
+std::vector<Channel*> Client::supp_channel()
+{
+    std::vector<Channel*>_channel_to_delete;
+    std::vector<Channel*>::iterator it = _channels.begin();
+    while(it != _channels.end())
+    {
+        if ((*it)->get_nbr_of_client() <= 1)
+            _channel_to_delete.push_back(*it);
+        it++;
+    }
+    return _channel_to_delete;
+}
+
 
 //----------------------------- DEBUG ------------------------------------
 

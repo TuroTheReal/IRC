@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:25:10 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 13:57:57 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 11:21:28 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,6 +76,7 @@ class Client
         void add_channel_invited(Channel *channel);
         void send_message(std::string message, std::vector<Client*> clients, std::vector<Channel*>channels);
         void join_message(Channel *channel);
+        std::vector<Channel*>  supp_channel();
 
         //DEBUG
         void get_operator();

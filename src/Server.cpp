@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 10:25:57 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 11:53:34 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -98,6 +98,17 @@ bool Server::isValidUsername(std::string user){
 	return true;
 }
 
+bool Server::isNotTakenChannel(std::string chan){
+	std::vector<Channel*>::iterator it = _channels.begin();
+	std::vector<Channel*>::iterator ite = _channels.end();
+
+	for (; it != ite; it++){
+		if (chan == (*it)->get_name())
+			return false;
+	}
+	return true;
+}
+
 void  Server::initErrorCodes(){
 	_errorCodes["331"] = "No topic is set";
 	_errorCodes["401"] = "No such nick/channel";
@@ -112,6 +123,7 @@ void  Server::initErrorCodes(){
 	_errorCodes["431"] = "No nickname given";
 	_errorCodes["432"] = "Erroneous nickname";
 	_errorCodes["433"] = "Nickname is already in use";
+	_errorCodes["434"] = "Channelname is already in use";
 	_errorCodes["441"] = "They aren't on that channel";
 	_errorCodes["442"] = "You're not on that channel";
 	_errorCodes["443"] = "Already on channel";
@@ -255,10 +267,24 @@ void Server::removeClient(size_t index){
 	std::vector<Client*>::iterator it = _clients.begin();
 	std::vector<Client*>::iterator ite = _clients.end();
 
-	for (; it != ite; it++)
-	{
-		if ((*it)->get_socket() == fd)
-		{
+	for (; it != ite; it++) {
+		if ((*it)->get_socket() == fd){
+
+			std::vector<Channel*> channel_to_delete = (*it)->supp_channel();
+			if (!channel_to_delete.empty()){
+				for (std::vector<Channel*>::iterator del_it = channel_to_delete.begin(); del_it != channel_to_delete.end(); del_it++){
+					std::vector<Channel*>::iterator it2 = _channels.begin();
+					while (it2 != _channels.end()) {
+						if ((*it2)->get_name() == (*del_it)->get_name()){
+							delete *it2;
+							_channels.erase(it2);
+							break;
+						}
+						else
+						it2++;
+					}
+				}
+			}
 			delete *it;
 			_clients.erase(it);
 			break;
@@ -874,6 +900,10 @@ void Server::handleJoin(int client_fd, std::vector<std::string> params, Client* 
 	if (res == 11){
 		std::string new_channel_name = params[1];
 		new_channel_name.erase(0,1);
+		if (!isNotTakenChannel(new_channel_name)){
+			sendClientError(client_fd, "434", params[0]);
+			return;
+		}
 		Channel* new_channel = new  Channel(new_channel_name, client);
 		client->set_operator(true);
 		client->add_channel_operator(new_channel);
