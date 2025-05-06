@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 13:12:33 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 15:28:00 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 10:17:14 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -466,7 +466,7 @@ int Client::invite(std::vector<std::string> input, std::vector<Client*> clients,
         }
         it++;
     }
-    if ((this->_is_operator == false || this->is_operator(channel_name) == 1) && (*it)->get_restriction_topic() == true)
+    if (this->_is_operator == false || this->is_operator(channel_name) == 1)
     {
         //std::cerr << "You are not the operator of " << channel_name << " channel" << std::endl;
         return (482);
@@ -497,7 +497,7 @@ int Client::topic(std::vector<std::string> input, std::vector<Client*> clients, 
         }
         it++;
     }
-    if (this->_is_operator == false || this->is_operator(channel_name) == 1)
+    if ((this->_is_operator == false || this->is_operator(channel_name)) == 1 && (*it)->get_restriction_topic() == true)
     {
         //std::cerr << "You are not the operator of " << channel_name << " channel" << std::endl;
         return (482);

@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/17 13:07:04 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 15:09:38 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 10:17:40 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -659,6 +659,7 @@ int Command::verif_mode_char(std::vector<std::string> input)
 	{
 		if (input[i][0] == '-' || input[i][0] == '+')
 		{
+			j = 1;
 			while (j < input[i].size())
 			{
 				if (input[i][j] != 'k' && input[i][j] != 'o'
@@ -666,7 +667,6 @@ int Command::verif_mode_char(std::vector<std::string> input)
 					return 1;
 				j++;
 			}
-			j = 0;
 		}
 		i++;
 	}

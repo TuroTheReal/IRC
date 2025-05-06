@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 15:27:38 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/06 10:25:57 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -297,11 +297,11 @@ void Server::cleanup(){
 		_fds.clear();
 	}
 
-	if (!_pendingTransfers.empty()) {
-		for (std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.begin(); it != _pendingTransfers.end(); it++)
-			_pendingTransfers.erase(it);
-		_pendingTransfers.clear();
-	}
+	// if (!_pendingTransfers.empty()) {
+	// 	for (std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.begin(); it != _pendingTransfers.end(); it++)
+	// 		_pendingTransfers.erase(it);
+	// 	_pendingTransfers.clear();
+	// }
 }
 
 void Server::handleClient(size_t index){
@@ -1015,11 +1015,3 @@ Server::~Server(){
 	std::cout << "Server closed" << std::endl;
 	cleanup();
 }
-
-
-/*******************************************************************/
-
-
-// demander qu est ce quune registration complete, et si apres quelle soit complete on peut encore faire les commandes pour se register ?
-// USERHOST cest quoi ?
-// check si cleanup avant throw || dans le catch || apres pour clean correctement apres un erreur
