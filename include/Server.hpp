@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 14:35:28 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/07 14:41:26 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,29 @@
 #include "Channel.hpp"
 #include "Command.hpp"
 
+struct FileTransfer {
+    std::string transfer_id;
+    std::string filename;
+    std::string sender_nick;
+    std::string receiver_nick;
+    size_t filesize;
+    std::vector<char> data;
+    bool transfer_complete;
+    time_t timestamp;
+};
+
+struct TransferSession {
+    int socket_fd;
+    std::string sender_nick;
+    std::string receiver_nick;
+    std::string filename;
+    ssize_t filesize;
+    ssize_t bytes_transferred;
+    time_t last_activity;
+    std::string transfer_id;
+    int last_progress_report;
+};
+
 class Server {
 	public:
 		Server(int port, std::string password);
@@ -39,14 +62,6 @@ class Server {
 
 	private:
 
-		struct PendingTransfer {
-			std::string sender_nick;
-			std::string receiver_nick;
-			std::string filename;
-			uint32_t ip_address;
-			int port;
-			size_t filesize;
-		};
 
 		int										_port;
 		std::string								_password;
@@ -58,7 +73,10 @@ class Server {
 		std::map<std::string, std::string>		_errorCodes;
 		std::vector<Client*>					_clients;
 		std::vector<Channel*>					_channels;
-		std::map<std::string, PendingTransfer>	_pendingTransfers;
+		std::map<std::string, FileTransfer>		_fileTransfers;
+		std::map<int, TransferSession>			_activeTransfers;
+		fd_set									_master_read_fds;
+		int										_max_fd;
 
 		void	createSocket();
 		void	bindSocket();
@@ -91,18 +109,24 @@ class Server {
 		void	handleCap(int, std::vector<std::string>, Client*);
 		void	handleUser(int, std::vector<std::string>, Client*);
 		void	handleTopic(int, std::vector<std::string>, Client*);
-		// void	handleSend(int, std::vector<std::string>, Client*);
-		// void	handleAccept(int, std::vector<std::string>, Client*);
-		// void	handleDecline(int, std::vector<std::string>, Client*);
+		void	handleSend(int, std::vector<std::string>, Client*);
+		void	handleUpload(int, std::vector<std::string>, Client*);
+		void	handleAccept(int, std::vector<std::string>, Client*);
+		void	handleDecline(int, std::vector<std::string>, Client*);
 		void	handlePing(int, std::vector<std::string>);
 		void	handleQuit(int);
+
+		Client*	findClientByNickname(const std::string& nickname);
+		void	handleTransferActivity(int sock_fd, TransferSession& session);
+		void	finishTransfer(int sock_fd, TransferSession& session, bool success, std::string error_msg = "");
+		void	cleanupExpiredTransfers();
+		void	handleSocketActivity();
 
 		Client*	getClientByFD(int);
 		bool	isValidChannel(std::string);
 		bool	isValidNickname(std::string);
 		bool	isValidUsername(std::string);
 		bool	isNotTakenChannel(std::string);
-
 
 		// debug
 		void	handle2X(int, std::vector<std::string>, Client*);
