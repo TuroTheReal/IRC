@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/07 15:00:38 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/14 16:47:30 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -109,34 +109,6 @@ bool Server::isNotTakenChannel(std::string chan){
 	return true;
 }
 
-Client* Server::findClientByNickname(const std::string& nickname) {
-	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
-		if ((*it)->get_nickname() == nickname) {
-			return *it;
-		}
-	}
-	return NULL;
-}
-
-// Remplacement de la fonction to_string pour C++98
-std::string toString(size_t value) {
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
-}
-
-std::string toString(int value) {
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
-}
-
-std::string toString(long value) {
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
-}
-
 void  Server::initErrorCodes(){
 	_errorCodes["331"] = "No topic is set";
 	_errorCodes["401"] = "No such nick/channel";
@@ -155,6 +127,7 @@ void  Server::initErrorCodes(){
 	_errorCodes["441"] = "They aren't on that channel";
 	_errorCodes["442"] = "You're not on that channel";
 	_errorCodes["443"] = "Already on channel";
+	_errorCodes["444"] = "Already operator";
 	_errorCodes["451"] = "You have not registered";
 	_errorCodes["459"] = "Too many arguments";
 	_errorCodes["461"] = "Not enough parameters";
@@ -175,7 +148,6 @@ void  Server::initErrorCodes(){
 	_errorCodes["601"] = "Invalid port number";
 	_errorCodes["602"] = "Invalid file size";
 	_errorCodes["603"] = "Not the destinator";
-	_errorCodes["604"] = "No transfer for this id";
 }
 
 void	Server::getHostName(){
@@ -332,6 +304,7 @@ void Server::removeClientByFD(int client_fd){
 	std::cerr << "Error: fd " << client_fd << " not found in _fds" << std::endl;
 }
 
+
 void Server::cleanup(){
 	if (!_clients.empty()) {
 		for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); it++)
@@ -351,20 +324,11 @@ void Server::cleanup(){
 		_fds.clear();
 	}
 
-	_fileTransfers.clear();
-
-	for (std::map<int, TransferSession>::iterator it = _activeTransfers.begin(); it != _activeTransfers.end(); ++it) {
-		if (close(it->first) < 0)
-			std::cerr << "Error: close on fd " << it->first << ": " << strerror(errno) << std::endl;
-		// Remove from master set if it's still there
-		FD_CLR(it->first, &_master_read_fds);
-	}
-
-	_activeTransfers.clear();
-
-	// Reset file descriptor sets
-	FD_ZERO(&_master_read_fds);
-	_max_fd = 0;
+	// if (!_pendingTransfers.empty()) {
+	// 	for (std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.begin(); it != _pendingTransfers.end(); it++)
+	// 		_pendingTransfers.erase(it);
+	// 	_pendingTransfers.clear();
+	// }
 }
 
 void Server::handleClient(size_t index){
@@ -485,18 +449,17 @@ void Server::parseCommand(std::string msg, int client_fd){
 		handlePass(client_fd, params, client);
 	else if (cmd == "QUIT")
 		handleQuit(client_fd);
+	else if (cmd == "WHO"){}
 	else if (cmd == "XX")
 		client->execute_command(params, _clients, _channels);
 	else if (cmd == "XXX")
 		client->execute_command(params, _clients, _channels);
-	else if (cmd == "SEND")
-		handleSend(client_fd, params, client);
-	else if (cmd == "UPLOAD")
-		handleUpload(client_fd, params, client);
-	else if (cmd == "ACCEPT")
-		handleAccept(client_fd, params, client);
-	else if (cmd == "DECLINE")
-		handleDecline(client_fd, params, client);
+	// else if (cmd == "SEND")
+	// 	handleSend(client_fd, params, client);
+	// else if (cmd == "ACCEPT")
+	// 	handleAccept(client_fd, params, client);
+	// else if (cmd == "DECLINE")
+	// 	handleDecline(client_fd, params, client);
 	else
 		sendClientError(client_fd, "421", cmd);
 }
@@ -584,481 +547,197 @@ Client* Server::getClientByFD(int client_fd){
 	return NULL;
 }
 
-
-void Server::handleUpload(int client_fd, std::vector<std::string> params, Client* client) {
-    // Format : UPLOAD transfer_id data_chunk
-    if (params.size() < 3) {
-        sendClientError(client_fd, "461", params[0]);
-        return;
-    }
-
-    std::string transfer_id = params[1];
-    std::string data_chunk = params[2];
-
-    // Récupérer le transfert correspondant
-    std::map<std::string, FileTransfer>::iterator it = _fileTransfers.find(transfer_id);
-    if (it == _fileTransfers.end()) {
-        sendClientError(client_fd, "604", params[0]);
-        return;
-    }
-
-    FileTransfer& transfer = it->second;
-
-    // Vérifier que le client est bien l'émetteur
-    if (transfer.sender_nick != client->get_nickname()) {
-        sendClientError(client_fd, "603", params[0]);
-        return;
-    }
-
-    // Ajouter les données au buffer
-    transfer.data.insert(transfer.data.end(), data_chunk.begin(), data_chunk.end());
-
-    // Vérifier si le transfert est complet
-    if (transfer.data.size() >= transfer.filesize) {
-        transfer.transfer_complete = true;
-
-        // Notifier l'émetteur que l'upload est terminé
-        std::string upload_complete = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                                     " :Upload du fichier " + transfer.filename + " terminé. En attente d'acceptation.\r\n";
-        ssize_t sent = send(client_fd, upload_complete.c_str(), upload_complete.length(), 0);
-        if (sent < 0)
-            throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-
-        // Notifier le destinataire que le fichier est prêt
-        Client* receiver = findClientByNickname(transfer.receiver_nick);
-        if (receiver) {
-            std::string file_ready = ":" + _server_name + " NOTICE " + receiver->get_nickname() +
-                                    " :Le fichier " + transfer.filename + " de " + transfer.sender_nick +
-                                    " est prêt. Utilisez ACCEPT " + transfer_id + " pour le recevoir.\r\n";
-            ssize_t sent2 = send(receiver->get_socket(), file_ready.c_str(), file_ready.length(), 0);
-            if (sent2 < 0)
-                throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-        }
-    } else {
-        // Envoyer une confirmation que le chunk a été reçu
-        std::string chunk_received = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                                   " :Chunk reçu. " + toString(transfer.data.size()) +
-                                   "/" + toString(transfer.filesize) + " octets.\r\n";
-        ssize_t sent = send(client_fd, chunk_received.c_str(), chunk_received.length(), 0);
-        if (sent < 0)
-            throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-    }
-}
-
-void Server::handleSend(int client_fd, std::vector<std::string> params, Client* client) {
-    // SEND target filename filesize
-    if (!client->isRegistered()) {
-        sendClientError(client_fd, "451", params[0]);
-        return;
-    }
-
-    if (params.size() != 4) {
-        if (params.size() < 4)
-            sendClientError(client_fd, "461", params[0]);
-        else if (params.size() > 4)
-            sendClientError(client_fd, "459", params[0]);
-        return;
-    }
-
-    ssize_t filesize;
-    try {
-        filesize = std::atol(params[3].c_str());
-        if (filesize < 0)
-            throw std::exception();
-    }
-    catch (...) {
-        sendClientError(client_fd, "602", params[0]);
-        return;
-    }
-
-    std::string nick = params[1];
-    Client* target = NULL;
-    for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
-        if ((*it)->get_nickname() == nick) {
-            target = *it;
-            break;
-        }
-    }
-
-    if (!target) {
-        sendClientError(client_fd, "401", nick);
-        return;
-    }
-
-    std::string filename = params[2];
-
-    std::ostringstream oss;
-    oss << time(NULL);
-
-    std::string temps = oss.str();
-    std::string transfer_id = client->get_nickname() + "_" + nick + "_" + filename + "_" + temps;
-
-    // Créer un nouveau transfert de fichier
-    FileTransfer transfer;
-    transfer.transfer_id = transfer_id;
-    transfer.sender_nick = client->get_nickname();
-    transfer.receiver_nick = nick;
-    transfer.filename = filename;
-    transfer.filesize = filesize;
-    transfer.transfer_complete = false;
-
-    // Ajouter un timestamp pour l'expiration
-    transfer.timestamp = time(NULL);
-
-    _fileTransfers[transfer_id] = transfer;
-
-    // Notifier l'émetteur
-    std::string upload_instructions = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                                    " :Utilisez la commande UPLOAD " + transfer_id + " [data] pour envoyer les données du fichier.\r\n";
-    ssize_t sent = send(client_fd, upload_instructions.c_str(), upload_instructions.length(), 0);
-    if (sent < 0)
-        throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-
-    // Notifier le destinataire
-    std::string file_pending = ":" + _server_name + " NOTICE " + nick +
-                             " :" + client->get_nickname() + " veut vous envoyer le fichier " + filename +
-                             " (" + toString(filesize) + " octets). ID de transfert: " + transfer_id + ".\r\n";
-    sent = send(target->get_socket(), file_pending.c_str(), file_pending.length(), 0);
-    if (sent < 0)
-        throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-
-    std::string info_msg = ":" + _server_name + " NOTICE " + nick + " :Utilisez ACCEPT " + transfer_id +
-                         " pour accepter ou DECLINE " + transfer_id + " pour refuser le transfert.\r\n";
-    sent = send(target->get_socket(), info_msg.c_str(), info_msg.length(), 0);
-    if (sent < 0)
-        throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-}
-
-void Server::handleAccept(int client_fd, std::vector<std::string> params, Client* client) {
-    if (params.size() != 2) {
-        sendClientError(client_fd, "461", params[0]);
-        return;
-    }
-
-    std::string transfer_id = params[1];
-
-    // Vérifier si c'est un transfert de fichier
-    std::map<std::string, FileTransfer>::iterator ft_it = _fileTransfers.find(transfer_id);
-    if (ft_it != _fileTransfers.end()) {
-        FileTransfer& transfer = ft_it->second;
-
-        // Vérifier que le client est bien le destinataire
-        if (transfer.receiver_nick != client->get_nickname()) {
-            sendClientError(client_fd, "603", params[0]);
-            return;
-        }
-
-        // Vérifier que le fichier a été complètement uploadé
-        if (!transfer.transfer_complete) {
-            std::string wait_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                                 " :Le fichier n'a pas encore été complètement uploadé. Veuillez attendre.\r\n";
-            ssize_t sent = send(client_fd, wait_msg.c_str(), wait_msg.length(), 0);
-            if (sent < 0)
-                throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-            return;
-        }
-
-        // Envoyer le fichier au destinataire
-        std::string start_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                              " :Début du transfert de " + transfer.filename + ".\r\n";
-        ssize_t sent = send(client_fd, start_msg.c_str(), start_msg.length(), 0);
-        if (sent < 0)
-            throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-
-        // Envoyer le fichier en morceaux
-        size_t chunk_size = 4096;
-        for (size_t i = 0; i < transfer.data.size(); i += chunk_size) {
-            size_t current_chunk_size = std::min(chunk_size, transfer.data.size() - i);
-
-            // Envoyer un en-tête pour le morceau
-            std::string header = ":" + _server_name + " FILEDATA " + client->get_nickname() +
-                               " " + transfer_id + " " + toString(i) + " " +
-                               toString(current_chunk_size) + "\r\n";
-            ssize_t sent_header = send(client_fd, header.c_str(), header.length(), 0);
-            if (sent_header < 0)
-                throw std::runtime_error(std::string("send header: ") + std::strerror(errno));
-
-            // Envoyer les données
-            ssize_t sent_data = send(client_fd, &transfer.data[i], current_chunk_size, 0);
-            if (sent_data < 0)
-                throw std::runtime_error(std::string("send data: ") + std::strerror(errno));
-
-            // Envoyer la progression toutes les 5 chunks
-            if ((i / chunk_size) % 5 == 0 || i + chunk_size >= transfer.data.size()) {
-                int progress = (int)((i + current_chunk_size) * 100 / transfer.data.size());
-                std::string progress_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                                        " :Transfert de " + transfer.filename + ": " +
-                                        toString(progress) + "% terminé.\r\n";
-                ssize_t sent_progress = send(client_fd, progress_msg.c_str(), progress_msg.length(), 0);
-                if (sent_progress < 0)
-                    throw std::runtime_error(std::string("send progress: ") + std::strerror(errno));
-            }
-        }
-
-        // Notifier que le transfert est terminé
-        std::string complete_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                                 " :Transfert de " + transfer.filename + " terminé avec succès.\r\n";
-        sent = send(client_fd, complete_msg.c_str(), complete_msg.length(), 0);
-        if (sent < 0)
-            throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-
-        // Notifier l'émetteur
-        Client* sender = findClientByNickname(transfer.sender_nick);
-        if (sender) {
-            std::string sender_msg = ":" + _server_name + " NOTICE " + sender->get_nickname() +
-                                   " :" + client->get_nickname() + " a reçu avec succès le fichier " +
-                                   transfer.filename + ".\r\n";
-            ssize_t sent2 = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
-            if (sent2 < 0)
-                throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-        }
-
-        // Supprimer le transfert
-        _fileTransfers.erase(transfer_id);
-        return;
-    }
-
-    // Si ce n'est pas un transfert de fichier, utiliser l'ancien code pour les transferts DCC
-    // [Le reste de votre code handleAccept original]
-}
-
-void Server::handleDecline(int client_fd, std::vector<std::string> params, Client* client){
-    if (params.size() != 2) {
-        sendClientError(client_fd, "461", params[0]);
-        return;
-    }
-
-    std::string transfer_id = params[1];
-
-    std::map<std::string, FileTransfer>::iterator it = _fileTransfers.find(transfer_id);
-    if (it == _fileTransfers.end()){
-        sendClientError(client_fd, "604", params[0]);
-        return;
-    }
-
-    FileTransfer& transfer = it->second;
-
-    if (transfer.receiver_nick != client->get_nickname()){
-        sendClientError(client_fd, "603", params[0]);
-        return;
-    }
-
-    std::string decline_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
-                                " :You refuse the transfert of " + transfer.filename +
-                                " from " + transfer.sender_nick + "\r\n";
-
-    ssize_t sent = send(client_fd, decline_msg.c_str(), decline_msg.length(), 0);
-    if (sent < 0)
-        throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-
-    Client *sender = NULL;
-    for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
-        if ((*it)->get_nickname() == transfer.sender_nick) {
-            sender = *it;
-            break;
-        }
-    }
-
-    if (sender) {
-        std::string sender_msg = ":" + _server_name + " NOTICE " + sender->get_nickname() +
-                                    " :" + client->get_nickname() + " has refuse to receive " +
-                                    transfer.filename + "\r\n";
-
-        ssize_t sent2 = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
-        if (sent2 < 0)
-            throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-    }
-
-    _fileTransfers.erase(transfer_id);
-}
-
-void Server::handleSocketActivity() {
-    fd_set read_fds = _master_read_fds;
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 100000;
-
-    if (select(_max_fd + 1, &read_fds, NULL, NULL, &tv) == -1)
-        throw std::runtime_error(std::string("select: ") + std::strerror(errno));
-
-
-    // Parcourir tous les descripteurs de fichiers
-    for (int i = 0; i <= _max_fd; i++) {
-        if (FD_ISSET(i, &read_fds)) {
-            // Vérifier si c'est un transfert DCC actif
-            std::map<int, TransferSession>::iterator it = _activeTransfers.find(i);
-            if (it != _activeTransfers.end()) {
-                handleTransferActivity(i, it->second);
-            }
-            // Sinon c'est géré ailleurs dans votre code principal du serveur
-        }
-    }
-}
-
-void Server::handleTransferActivity(int sock_fd, TransferSession& session) {
-    char buffer[8192];
-    ssize_t bytes_read = recv(sock_fd, buffer, sizeof(buffer), 0);
-
-    if (bytes_read > 0) {
-        // Mise à jour des statistiques de transfert
-        session.bytes_transferred += bytes_read;
-        session.last_activity = time(NULL);
-
-        // Calculer le pourcentage de progression
-        int progress = (int)((session.bytes_transferred * 100) / session.filesize);
-
-        // Informer périodiquement les clients (par exemple, tous les 10%)
-        if (progress % 10 == 0 && session.last_progress_report != progress) {
-            session.last_progress_report = progress;
-
-            // Trouver les clients pour envoyer les notifications
-            Client* sender = findClientByNickname(session.sender_nick);
-            Client* receiver = findClientByNickname(session.receiver_nick);
-
-            std::string prog = toString(progress);
-            std::string bytes_transfert = toString(session.bytes_transferred);
-            std::string f_size = toString(session.filesize);
-
-            std::string progress_msg = ":" + _server_name + " NOTICE %s" + " :Transfert de " + session.filename + ": " +
-                                    prog + "%% terminé (" + bytes_transfert + "/" + f_size + " octets)\r\n";
-
-            if (sender) {
-                std::string sender_msg = progress_msg;
-                sender_msg.replace(sender_msg.find("%s"), 2, sender->get_nickname());
-                ssize_t sent = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
-                if (sent < 0)
-                    throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-            }
-
-            if (receiver) {
-                std::string receiver_msg = progress_msg;
-                receiver_msg.replace(receiver_msg.find("%s"), 2, receiver->get_nickname());
-                ssize_t sent2 = send(receiver->get_socket(), receiver_msg.c_str(), receiver_msg.length(), 0);
-                if (sent2 < 0)
-                    throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-            }
-        }
-
-        // Si le transfert est terminé
-        if (session.bytes_transferred >= session.filesize) {
-            finishTransfer(sock_fd, session, true);
-        }
-    }
-
-    else if (bytes_read == 0) {
-        // Connexion fermée par l'autre côté
-        finishTransfer(sock_fd, session, session.bytes_transferred >= session.filesize);
-    }
-    else if (bytes_read == -1) {
-        // Erreur ou non-bloquant sans données à lire
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            std::string error = std::strerror(errno);
-            finishTransfer(sock_fd, session, false, "Error while reading: " + error);
-        }
-    }
-}
-
-void Server::finishTransfer(int sock_fd, TransferSession& session, bool success, std::string error_msg) {
-    // Trouver les clients pour les notifications
-    Client* sender = findClientByNickname(session.sender_nick);
-    Client* receiver = findClientByNickname(session.receiver_nick);
-
-    std::string status_msg;
-    if (success) {
-        status_msg = ":" + _server_name + " NOTICE %s" +
-                   " :Transfert de " + session.filename + " terminé avec succès.\r\n";
-    } else {
-        status_msg = ":" + _server_name + " NOTICE %s" +
-                   " :Transfert de " + session.filename + " échoué. " + error_msg + "\r\n";
-    }
-
-    if (sender) {
-        std::string sender_msg = status_msg;
-        sender_msg.replace(sender_msg.find("%s"), 2, sender->get_nickname());
-        ssize_t sent = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
-        if (sent < 0)
-            throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-    }
-
-    if (receiver) {
-        std::string receiver_msg = status_msg;
-        receiver_msg.replace(receiver_msg.find("%s"), 2, receiver->get_nickname());
-        ssize_t sent2 = send(receiver->get_socket(), receiver_msg.c_str(), receiver_msg.length(), 0);
-        if (sent2 < 0)
-            throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-    }
-
-    // Nettoyer les ressources
-    FD_CLR(sock_fd, &_master_read_fds);
-    safeClose(sock_fd);
-    _activeTransfers.erase(sock_fd);
-
-    // Recalculer _max_fd si nécessaire
-    if (sock_fd == _max_fd) {
-        _max_fd = 0;
-        for (int i = 0; i <= sock_fd; i++) {
-            if (FD_ISSET(i, &_master_read_fds) && i > _max_fd) {
-                _max_fd = i;
-            }
-        }
-    }
-}
-
-void Server::cleanupExpiredTransfers() {
-    time_t current_time = time(NULL);
-
-    // Nettoyer les transferts en attente expirés (plus de 5 minutes)
-    std::vector<std::string> expired_transfers;
-    for (std::map<std::string, FileTransfer>::iterator it = _fileTransfers.begin();
-         it != _fileTransfers.end(); ++it) {
-        if (current_time - it->second.timestamp > 300) { // 5 minutes
-            expired_transfers.push_back(it->first);
-        }
-    }
-
-    for (std::vector<std::string>::iterator it = expired_transfers.begin();
-         it != expired_transfers.end(); ++it) {
-            FileTransfer& transfer = _fileTransfers[*it];
-
-        // Notifier les clients
-        Client* sender = findClientByNickname(transfer.sender_nick);
-        Client* receiver = findClientByNickname(transfer.receiver_nick);
-
-        if (sender) {
-            std::string msg = ":" + _server_name + " NOTICE " + sender->get_nickname() +
-                            " :Le transfert de " + transfer.filename + " vers " +
-                            transfer.receiver_nick + " a expiré.\r\n";
-            ssize_t sent = send(sender->get_socket(), msg.c_str(), msg.length(), 0);
-            if (sent < 0)
-                throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-        }
-
-        if (receiver) {
-            std::string msg = ":" + _server_name + " NOTICE " + receiver->get_nickname() +
-                            " :Le transfert de " + transfer.filename + " depuis " +
-                            transfer.sender_nick + " a expiré.\r\n";
-            ssize_t sent2 = send(receiver->get_socket(), msg.c_str(), msg.length(), 0);
-            if (sent2 < 0)
-                throw std::runtime_error(std::string("send: ") + std::strerror(errno));
-        }
-
-        _fileTransfers.erase(*it);
-    }
-
-    // Nettoyer les transferts actifs inactifs (plus de 2 minutes)
-    std::vector<int> inactive_transfers;
-    for (std::map<int, TransferSession>::iterator it = _activeTransfers.begin();
-         it != _activeTransfers.end(); ++it) {
-        if (current_time - it->second.last_activity > 120) { // 2 minutes
-            inactive_transfers.push_back(it->first);
-        }
-    }
-
-    for (std::vector<int>::iterator it = inactive_transfers.begin();
-         it != inactive_transfers.end(); ++it) {
-        finishTransfer(*it, _activeTransfers[*it], false, "Timeout de connexion");
-    }
-}
+// void Server::handleSend(int client_fd, std::vector<std::string> params, Client* client){
+// 	// if (!client->isRegistered()) {
+// 	// 	sendClientError(client_fd, "451", params[0]);
+// 	// 	return;
+// 	// }
+
+// 	if (params.size() != 5){
+// 		if (params.size() < 5)
+// 			sendClientError(client_fd, "461", params[0]);
+// 		else if (params.size() > 5)
+// 			sendClientError(client_fd, "459", params[0]);
+// 		return;
+// 	}
+
+// 	int port;
+// 	try {
+// 		port = std::atoi(params[2].c_str());
+// 		if (port <= 0 || port > 65535)
+// 			throw std::exception();
+// 	}
+// 	catch (...){
+// 		sendClientError(client_fd, "601", params[0]);
+// 		return;
+// 	}
+
+// 	ssize_t filesize;
+// 	try {
+// 		filesize = std::atol(params[4].c_str());
+// 		if (filesize < 0)
+// 			throw std::exception();
+// 	}
+// 	catch (...){
+// 		sendClientError(client_fd, "602", params[0]);
+// 		return;
+// 	}
+
+// 	std::string nick = params[1];
+// 	Client* target = NULL;
+// 	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+// 		if ((*it)->get_nickname() == nick) {
+// 			target = *it;
+// 			break;
+// 		}
+// 	}
+
+// 	if (!target) {
+// 		sendClientError(client_fd, "401", nick);
+// 		return;
+// 	}
+
+// 	std::string filename = params[3];
+
+// 	struct sockaddr_in client_addr;
+// 	socklen_t addr_len = sizeof(client_addr);
+// 	getpeername(client_fd, (struct sockaddr*)&client_addr, &addr_len);
+// 	uint32_t ip_num = ntohl(client_addr.sin_addr.s_addr);
+
+// 	std::string transfer_id = client->get_nickname() + "_" + nick + "_" + filename + "_" + std::to_string(time(NULL));
+
+// 	PendingTransfer transfer;
+// 	transfer.sender_nick = client->get_nickname();
+// 	transfer.receiver_nick = nick;
+// 	transfer.filename = filename;
+// 	transfer.ip_address = ip_num;
+// 	transfer.port = port;
+// 	transfer.filesize = filesize;
+
+// 	_pendingTransfers[transfer_id] = transfer;
+
+// 	std::stringstream dcc_msg;
+
+// 	dcc_msg << "\001DCC SEND " << filename << " " << ip_num << " " << port << " " << filesize << " " << transfer_id << "\001";
+
+// 	std::string privmsg = ":" + client->get_nickname() + "!" + client->get_username() + "@" + _host_name + " PRIVMSG " + nick + " :" + dcc_msg.str() + "\r\n";
+// 	ssize_t sent = send(target->get_socket(), privmsg.c_str(), privmsg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	std::string info_msg = ":" + _server_name + " NOTICE " + nick + " :Use ACCEPT " + transfer_id + " to accept or DECLINE " + transfer_id + " to refuse the transfer.\r\n";
+// 	sent = send(target->get_socket(), info_msg.c_str(), info_msg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	std::string confirm = ":" + _server_name + " NOTICE " + client->get_nickname() + " :DCC SEND request sent to " + nick + " (ID: " + transfer_id + ")\r\n";
+// 	sent = send(client_fd, confirm.c_str(), confirm.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+// }
+
+// void Server::handleAccept(int client_fd, std::vector<std::string> params, Client* client){
+// 	if (params.size() != 2) {
+// 		sendClientError(client_fd, "461", params[0]);
+// 		return;
+// 	}
+
+// 	std::string transfer_id = params[1];
+
+// 	std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.find(transfer_id);
+// 	if (it == _pendingTransfers.end()){
+// 		sendClientError(client_fd, "461", params[0]);
+// 	}
+
+// 	PendingTransfer& transfer = it->second;
+// 	if (transfer.receiver_nick != client->get_nickname()){
+// 		sendClientError(client_fd, "603", params[0]);
+// 		return;
+// 	}
+
+// 	uint32_t ip = transfer.ip_address;
+// 	std::string ip_str = std::to_string((ip >> 24) & 0xFF) + "." +
+// 							std::to_string((ip >> 16) & 0xFF) + "." +
+// 							std::to_string((ip >> 8) & 0xFF) + "." +
+// 							std::to_string(ip & 0xFF);
+
+// 	std::string accept_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
+// 							" :Connecton init to " + ip_str + ":" +
+// 							std::to_string(transfer.port) + " to receive " +
+// 							transfer.filename + "\r\n";
+
+// 	ssize_t sent = send(client_fd, accept_msg.c_str(), accept_msg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	Client *sender = NULL;
+// 	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+// 		if ((*it)->get_nickname() == transfer.sender_nick) {
+// 			sender = *it;
+// 			break;
+// 		}
+// 	}
+
+// 	if (sender) {
+// 		std::string sender_msg = ":" + _server_name + " NOTICE " + sender->get_nickname() +
+// 								" :" + client->get_nickname() + " has accepted to receive " +
+// 								transfer.filename + "\r\n";
+
+// 		sent = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
+// 		if (sent < 0)
+// 			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+// 	}
+
+// 	_pendingTransfers.erase(transfer_id);
+// }
+
+// void Server::handleDecline(int client_fd, std::vector<std::string> params, Client* client){
+// 	if (params.size() != 2) {
+// 		sendClientError(client_fd, "461", params[0]);
+// 		return;
+// 	}
+
+// 	std::string transfer_id = params[1];
+
+// 	std::map<std::string, PendingTransfer>::iterator it = _pendingTransfers.find(transfer_id);
+// 	if (it == _pendingTransfers.end()){
+// 		sendClientError(client_fd, "461", params[0]);
+// 	}
+
+// 	PendingTransfer& transfer = it->second;
+// 	if (transfer.receiver_nick != client->get_nickname()){
+// 		sendClientError(client_fd, "603", params[0]);
+// 		return;
+// 	}
+
+// 	std::string decline_msg = ":" + _server_name + " NOTICE " + client->get_nickname() +
+// 								" :You refuse the transfert of " + transfer.filename +
+// 								" from " + transfer.sender_nick + "\r\n";
+
+// 	ssize_t sent = send(client_fd, decline_msg.c_str(), decline_msg.length(), 0);
+// 	if (sent < 0)
+// 		throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+
+// 	Client *sender = NULL;
+// 	for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+// 		if ((*it)->get_nickname() == transfer.sender_nick) {
+// 			sender = *it;
+// 			break;
+// 		}
+// 	}
+
+// 	if (sender) {
+// 		std::string sender_msg = ":" + _server_name + " NOTICE " + sender->get_nickname() +
+// 									" :" + client->get_nickname() + " has refuse to receive " +
+// 									transfer.filename + "\r\n";
+
+// 		sent = send(sender->get_socket(), sender_msg.c_str(), sender_msg.length(), 0);
+// 		if (sent < 0)
+// 			throw std::runtime_error(std::string("send: ") + std::strerror(errno));
+// 	}
+
+// 	_pendingTransfers.erase(transfer_id);
+// }
 
 void Server::handleKick(int client_fd, std::vector<std::string> params, Client* client){
 	if (!client->isRegistered()) {
@@ -1313,13 +992,18 @@ void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Clien
 }
 
 void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
+	if (params.size() < 2){
+		sendClientError(client_fd, "461", params[0]);
+		return;
+	}
+
 	if (!client->isRegistered()) {
 		sendClientError(client_fd, "451", params[0]);
 		return;
 	}
 
-	if (params.size() < 2){
-		sendClientError(client_fd, "461", params[0]);
+	if (client->get_irrsi() == false && params[1][0] != '#'){
+		client->set_irrsi(true);
 		return;
 	}
 
@@ -1370,13 +1054,6 @@ void Server::run(){
 	_fds[0].fd = _server_socket;
 	_fds[0].events = POLLIN;
 
-	// Initialisation des ensembles de descripteurs de fichiers pour select()
-	FD_ZERO(&_master_read_fds);
-	FD_SET(_server_socket, &_master_read_fds);
-	_max_fd = _server_socket;
-
-	time_t last_cleanup = time(NULL);
-
 	while(_isON)
 	{
 		if (poll(_fds.data(), _fds.size(), -1) < 0){
@@ -1397,21 +1074,12 @@ void Server::run(){
 				i--;
 			}
 		}
-		handleSocketActivity();
-		time_t now = time(NULL);
-		if (now - last_cleanup > 60) {
-			cleanupExpiredTransfers();
-			last_cleanup = now;
-		}
 	}
 	cleanup();
 }
 
 Server::Server(int port, std::string password) : _port(port), _password(password), _server_name("IRC"){
 	_isON = 1;
-	FD_ZERO(&_master_read_fds);
-	_max_fd = 0;
-
 	try {
 		createSocket();
 		bindSocket();

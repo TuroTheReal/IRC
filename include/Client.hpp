@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:25:10 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 11:21:28 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/14 11:00:34 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,6 +53,9 @@ class Client
 		bool get_bool_user();
 		bool isRegistered();
 
+		void set_irrsi(bool);
+		bool get_irrsi();
+
 
         // Gestion des channels
         int join_channel(std::vector<std::string> input, std::vector<Channel*> &channels);
@@ -77,6 +80,7 @@ class Client
         void send_message(std::string message, std::vector<Client*> clients, std::vector<Channel*>channels);
         void join_message(Channel *channel);
         std::vector<Channel*>  supp_channel();
+        int operator_vector_nul();
 
         //DEBUG
         void get_operator();
@@ -96,6 +100,7 @@ class Client
 		bool _hasPassword;
 		bool _hasNick;
 		bool _hasUser;
+		bool _irssi;
         std::vector<Channel*> _invited_channels;
         std::vector<Channel*> _channels;
         std::vector<Channel*> _operator_channels;

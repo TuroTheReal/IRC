@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Channel.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
+/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/15 15:25:11 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 13:29:36 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/12 17:27:37 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@ Channel::Channel(std::string name, Client *opera)
     this->_is_restriction_topic = false;
     this->_limit = -1;
     this->_operator_clients.push_back(opera);
+    this->_creationTime = std::time(NULL);
 
 }
 
@@ -55,6 +56,11 @@ bool Channel::get_operator_bool()
     if (this->_operator_clients.empty())
         return (false);
     return (true);
+}
+
+time_t Channel::getCreationTime() 
+{
+    return this->_creationTime;
 }
 
 Client *Channel::get_operator(Client *client)

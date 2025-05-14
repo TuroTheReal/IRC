@@ -6,7 +6,7 @@
 /*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:25:46 by dsindres          #+#    #+#             */
-/*   Updated: 2025/04/30 15:04:12 by dsindres         ###   ########.fr       */
+/*   Updated: 2025/05/12 17:27:40 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <ctime>
 
 class Client;
 
@@ -41,6 +42,7 @@ class Channel
         void set_topic(std::string topic_message);
         void set_pass(std::string pass);
         void set_limit(int limit);
+        time_t getCreationTime();
 
         //DEBUG
         void get_all_clients();
@@ -64,6 +66,7 @@ class Channel
         bool _on_invit;
         bool _is_restriction_topic;
         std::string _topic;
+        time_t _creationTime;
         std::vector<Client*> _clients;
         std::vector<Client*> _operator_clients;
 };

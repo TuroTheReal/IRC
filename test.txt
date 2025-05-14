@@ -1,9 +1,50 @@
-join
-mode
-INVITE
-KICK checker jump fonction client::kick, msg a tt le monde zizi
-QUIT
-ctrl C
+commande							irssi		nc
+mode								ok			ok
+mode user							ok			KO		1ere fois rien, 2eme erreur (lie au modif du bool)
+mode Fuser							ok			ok
+mode chan							ok			ok
+mode Fchan							ok			ok
+mode chan Fparam					ok			KO		sur irssi i = +i sur le notre 461
 
 
-bot ok avec privmsg et normal mais pas ok avec irssi
+mode user non op +i					ok			ok
+mode user +i						ok			ok
+mode user -i						ok			ok
+mode user -i +i						ok			KO		mets le dernier, naffiche pas le 1er, irssi interprete +i -i en "+i-i" et mets 501
+
+
+pareil avec t
+
+
+MODE #channel +k					KO			KO		too many au lieu de not enough
+MODE #channel +k pass				ok			ok
+MODE #channel +k Fpass				KO			KO		unknow mode au lieu de invalid/errorneous password
+MODE #channel +k m d p				KO			KO		unknow mode au lieu de invalid/errorneous password
+MODE #channel +k Fmdp				KO			KO		irssi : unknow mode flag,  nc = mdp set meme si pas bon caractere, espace ou trop long :
+
+MODE #channel +k ewiquriwqhejbrouwhberpijnqpi wlekrm;wemrpwmeprowemrpowomer
+:bob!bob@localhost MODE #channel +k ewiquriwqhejbrouwhberpijnqpi
+
+MODE #channel -k					ok			ok
+
+
+MODE #channel +l					KO			KO		too many au lieu de not enough
+MODE #channel +l 10					ok			ok
+MODE #channel +l -5					erreur a redefinir
+MODE #channel +l 0					erreur a redefinir
+MODE #channel +l abc				erreur a redefinir
+MODE #channel -l					ok			ok		display limits = -1, normal ?
+
+
+MODE #channel +o					ok			ok
+MODE #channel +o user				ok			ok
+MODE #channel +o user not in chan	KO			KO		pas de display au lieu de 443 not in chan
+MODE #channel +o already operator	KO			KO		pas de display au lieu de 444 already operator
+MODE #channel +o user user			dans irssi +o user user	== +b, on fait quoi ?
+MODE #channel -o user not in chan	KO			KO  	pas de display au lieu de 443 not in chan
+MODE #channel -o user not operator	ok			ok
+
+
+si je quitte un chan avec Dave, bien plus dans le channel mais pas de display sur le channel, dois y avoir un message type user has left channel
+
+erreur dans irssi a debug : 16:57 -!- Irssi: critical nicklist_set_host: assertion 'host != NULL' failed, je crois que normal avec ce quon doit gerer ;ais a verifier

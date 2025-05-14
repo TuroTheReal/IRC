@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Command.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
+/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:26:09 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/05 15:03:47 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/13 16:38:30 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,8 @@ class Command
         std::string is_valid_client(std::vector<std::string> input, int index, std::vector<Client*> clients, Channel *channel);
         std::string is_valid_client_2(std::vector<std::string> input, int index, std::vector<Client*> clients, Channel *channel);
 		int verif_mode_char(std::vector<std::string> input);
+        int after_w(std::string input, size_t index, int flag);
+        int verif_mode_o(std::vector<std::string> input);
 
     private:
 };
