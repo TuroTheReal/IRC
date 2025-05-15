@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/15 10:59:07 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/15 13:19:17 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -993,16 +993,17 @@ void Server::handlePrivmsg(int client_fd, std::vector<std::string> params, Clien
 }
 
 void Server::handleMode(int client_fd, std::vector<std::string> params, Client* client){
-	if (params.size() < 2){
-		sendClientError(client_fd, "461", params[0]);
-		return;
-	}
 
 	if (!client->isRegistered()) {
 		sendClientError(client_fd, "451", params[0]);
 		return;
 	}
 
+	if (params.size() < 2){
+		sendClientError(client_fd, "461", params[0]);
+		return;
+	}
+	
 	if (client->get_irrsi() == false && params[1][0] != '#'){
 		client->set_irrsi(true);
 		return;
