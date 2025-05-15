@@ -4,36 +4,32 @@ mode user							ok			KO		1ere fois rien, 2eme erreur (lie au modif du bool)
 mode Fuser							ok			ok
 mode chan							ok			ok
 mode Fchan							ok			ok
-mode chan Fparam					ok			KO		sur irssi i = +i sur le notre 461
+mode chan Fparam					ok			ok
 
 
 mode user non op +i					ok			ok
 mode user +i						ok			ok
 mode user -i						ok			ok
-mode user -i +i						ok			KO		mets le dernier, naffiche pas le 1er, irssi interprete +i -i en "+i-i" et mets 501
+mode user -i +i						ok			ok
 
 
 pareil avec t
 
 
-MODE #channel +k					KO			KO		too many au lieu de not enough
+MODE #channel +k					ok			ok
 MODE #channel +k pass				ok			ok
-MODE #channel +k Fpass				KO			KO		unknow mode au lieu de invalid/errorneous password
-MODE #channel +k m d p				KO			KO		unknow mode au lieu de invalid/errorneous password
-MODE #channel +k Fmdp				KO			KO		irssi : unknow mode flag,  nc = mdp set meme si pas bon caractere, espace ou trop long :
-
-MODE #channel +k ewiquriwqhejbrouwhberpijnqpi wlekrm;wemrpwmeprowemrpowomer
-:bob!bob@localhost MODE #channel +k ewiquriwqhejbrouwhberpijnqpi
-
+MODE #channel +k Fpass				ok			ok
+MODE #channel +k m d p				ok			ok
+MODE #channel +k Fmdp				ok			ok
 MODE #channel -k					ok			ok
 
 
-MODE #channel +l					KO			KO		too many au lieu de not enough
+MODE #channel +l					ok			ok
 MODE #channel +l 10					ok			ok
-MODE #channel +l -5					erreur a redefinir
-MODE #channel +l 0					erreur a redefinir
-MODE #channel +l abc				erreur a redefinir
-MODE #channel -l					ok			ok		display limits = -1, normal ?
+MODE #channel +l -5					ok			ok
+MODE #channel +l 0					ok			ok
+MODE #channel +l abc				ok			ok
+MODE #channel -l					ok			ok
 
 
 MODE #channel +o					ok			ok

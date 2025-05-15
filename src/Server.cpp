@@ -6,7 +6,7 @@
 /*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:35:44 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/14 16:47:30 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/15 10:59:07 by artberna         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -140,6 +140,7 @@ void  Server::initErrorCodes(){
 	_errorCodes["474"] = "Cannot join channel (+b)";
 	_errorCodes["475"] = "Cannot join channel (+k)";
 	_errorCodes["476"] = "Bad channel mask";
+	_errorCodes["477"] = "Invalid limits";
 	_errorCodes["481"] = "Permission Denied (You're not an IRC operator)";
 	_errorCodes["482"] = "You're not channel operator";
 	_errorCodes["484"] = "Your connection is restricted";
