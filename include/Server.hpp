@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
+/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:24:38 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/06 14:35:28 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/21 13:36:36 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,15 +39,6 @@ class Server {
 
 	private:
 
-		struct PendingTransfer {
-			std::string sender_nick;
-			std::string receiver_nick;
-			std::string filename;
-			uint32_t ip_address;
-			int port;
-			size_t filesize;
-		};
-
 		int										_port;
 		std::string								_password;
 		int										_server_socket;
@@ -58,7 +49,6 @@ class Server {
 		std::map<std::string, std::string>		_errorCodes;
 		std::vector<Client*>					_clients;
 		std::vector<Channel*>					_channels;
-		std::map<std::string, PendingTransfer>	_pendingTransfers;
 
 		void	createSocket();
 		void	bindSocket();
@@ -91,9 +81,6 @@ class Server {
 		void	handleCap(int, std::vector<std::string>, Client*);
 		void	handleUser(int, std::vector<std::string>, Client*);
 		void	handleTopic(int, std::vector<std::string>, Client*);
-		// void	handleSend(int, std::vector<std::string>, Client*);
-		// void	handleAccept(int, std::vector<std::string>, Client*);
-		// void	handleDecline(int, std::vector<std::string>, Client*);
 		void	handlePing(int, std::vector<std::string>);
 		void	handleQuit(int);
 

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Client.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
+/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/14 13:25:10 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/14 11:00:34 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/15 17:24:59 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,7 +86,7 @@ class Client
         void get_operator();
         void get_channel();
         void get_invitation();
-        void XX();
+        void XX(std::vector<std::string> input, std::vector<Client*> clients);
         void XXX(std::vector<std::string> input, std::vector<Channel*>channels);
 
 
@@ -95,6 +95,8 @@ class Client
         std::string _nickname;
         std::string _username;
         std::string _realname;
+        std::string _hostname;
+        std::string _mode;
         bool _is_authenticated;
         bool _is_operator;
 		bool _hasPassword;

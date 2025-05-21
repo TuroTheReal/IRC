@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Command.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: artberna <artberna@student.42.fr>          +#+  +:+       +#+        */
+/*   By: dsindres <dsindres@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/17 13:07:04 by dsindres          #+#    #+#             */
-/*   Updated: 2025/05/15 11:18:46 by artberna         ###   ########.fr       */
+/*   Updated: 2025/05/20 11:46:44 by dsindres         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,14 +43,14 @@ int Command::kick(std::vector<std::string> input, std::vector<Client*> clients, 
                 {
                     //std::cout << input[2] << " is ejected from " << channel_name << " channel because " << input[3] << std::endl;
                     std::string message;
-                    message = ":" + client->get_nickname() + "!" + client->get_username() + "@localhost KICK #" + channel_name + " " + test->get_username() + " :" + input[3];
+                    message = ":" + client->get_nickname() + "!" + client->get_username() + "@localhost KICK #" + channel_name + " " + test->get_nickname() + " :" + input[3];
                     (*it)->send_message(message);
                 }
                 else
                 {
                     //std::cout << input[2] << " is ejected from " << channel_name << " channel" << std::endl;
                     std::string message;
-                    message = ":" + client->get_nickname() + "!" + client->get_username() + "@localhost KICK #" + channel_name + " " + test->get_username();
+                    message = ":" + client->get_nickname() + "!" + client->get_username() + "@localhost KICK #" + channel_name + " " + test->get_nickname();
                     (*it)->send_message(message);
                 }
 				test->leave_channel(channel_name, channels);
@@ -201,23 +201,18 @@ int Command::topic(std::vector<std::string> input, std::vector<Client*> clients,
 
 int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, std::vector<Channel*> channels, Client *client)
 {
-    // Ignorer clients (tel que dans le code original)
     (void)clients;
 
-    // Vérifier si nous avons assez d'arguments
     if (input.size() < 2)
     {
         //std::cout << "LAAAAAAA 1" << std::endl;
         return 461; // ERR_NEEDMOREPARAMS
     }
 
-    // Extraire le nom du canal et supprimer le '#' au début
     std::string channel_name = input[1];
-    if (channel_name[0] == '#') {
-        channel_name.erase(0, 1);
-    }
+    channel_name.erase(0, 1);
 
-    // Trouver le canal dans la liste
+
     std::vector<Channel*>::iterator it = channels.begin();
     while (it != channels.end()) {
         if (channel_name == (*it)->get_name()) {
@@ -226,20 +221,17 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
         it++;
     }
 
-    // Si on a atteint la fin, le canal n'existe pas
     if (it == channels.end())
     {
         //std::cout << "LAAAAAAA 2" << std::endl;
         return 403; // ERR_NOSUCHCHANNEL
     }
 
-    // Supprimer les deux premiers éléments (commande et nom du canal)
     if (input.size() >= 2) {
         input.erase(input.begin(), input.begin() + 2);
     }
 
 
-    // Vérifier s'il y a des arguments de mode
     if (input.empty())
     {
         std::string message01 = ":IRC 324 " + client->get_nickname() + " #" + channel_name + " +";
@@ -273,14 +265,12 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
         return 0;
     }
 
-    // Vérifier que les arguments commencent par + ou -
     if (input[0][0] != '+' && input[0][0] != '-')
     {
         //std::cout << "LAAAAAAA 4" << std::endl;
         return 461; // ERR_NEEDMOREPARAMS
     }
 
-    // Vérifier les caractères de mode valides
     if (verif_mode_o(input) == 1)
     {
         //std::cout << "verif mode o exit" << std::endl;
@@ -294,7 +284,6 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
     }
 
 
-    // Structure pour suivre l'état des modes
     struct ModeState {
         bool set;           // true si mode à définir, false si à retirer
         bool processed;     // indique si le mode a été traité
@@ -309,7 +298,6 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
     ModeState oMode = {false, false, 0, ""};  // Mode opérateur
     ModeState lMode = {false, false, 0, ""};  // Mode limite
 
-    // Parcourir les arguments pour déterminer les modes à modifier
     size_t i = 0;
     int o_stop = 0;
     while (i < input.size())
@@ -318,7 +306,6 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
         int flag = 0;
 
 
-        // Parcourir chaque caractère de mode dans l'argument
         for (size_t j = 1; j < input[i].size(); j++)
         {
             //int o_stop = 0;
@@ -374,95 +361,48 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
                     oMode.processed = true;
                     oMode.index = i;
 
-                    // Vérifier si un paramètre est disponible
                     if (i + 1 >= input.size()) {
                         return 461;
                     }
 
-                    // Valider les clients selon le mode (+o ou -o)
                     if (isSet)
                     {
-                        // Chercher tous les clients à mettre opérateur
                         std::string validClientsList;
-                        //int found = after_w(input[i], j, 2);
                         size_t clientIndex = i + 1;
-                        while (clientIndex < input.size() &&
-                               input[clientIndex][0] != '+' &&
-                               input[clientIndex][0] != '-')
-                        {
-                            // Vérifier si le client est dans le canal
-                            Client* targetClient = (*it)->get_client(input[clientIndex]);
-                            if (targetClient == NULL) {
-                                // Client pas dans le canal, on skip
-                                clientIndex++;
-                                continue;
-                            }
+                        Client* targetClient = (*it)->get_client(input[clientIndex]);
+                        
+                        if (targetClient == NULL)
+                            return (441);
+                            
+                        if ((*it)->get_operator(targetClient) != NULL)
+                            return (467);
 
-                            // Vérifier si le client est déjà opérateur
-                            if ((*it)->get_operator(targetClient) != NULL) {
-                                // Déjà opérateur, on skip
-                                clientIndex++;
-                                continue;
-                            }
+                        // Ajouter l'opérateur
+                        (*it)->add_operator(targetClient);
+                        targetClient->add_channel_operator(*it);
+                        targetClient->set_operator(true);
 
-                            // Ajouter l'opérateur
-                            (*it)->add_operator(targetClient);
-                            targetClient->add_channel_operator(*it);
-                            targetClient->set_operator(true);
-
-                            // Concaténer les clients valides
-                            if (!validClientsList.empty())
-                            {
-                                validClientsList += " ";
-                            }
-                            validClientsList += input[clientIndex];
-
-                            clientIndex++;
-                        }
+                        validClientsList = input[clientIndex];
                         oMode.param = validClientsList;
-                        //o_stop = 1;
-
                     }
                     else
                     {
-                        // Chercher tous les clients à retirer du mode opérateur
                         std::string validClientsList;
                         size_t clientIndex = i + 1;
-                        while (clientIndex < input.size() &&
-                               input[clientIndex][0] != '+' &&
-                               input[clientIndex][0] != '-') {
+                        Client* targetClient = (*it)->get_client(input[clientIndex]);
+                        
+                        if (targetClient == NULL)
+                            return (441);
 
-                            // Vérifier si le client est dans le canal
-                            Client* targetClient = (*it)->get_client(input[clientIndex]);
-                            if (targetClient == NULL) {
-                                // Client pas dans le canal, on skip
-                                clientIndex++;
+                        if ((*it)->get_operator(targetClient) == NULL)
+                            return (468);
 
-                                continue;
-                            }
+                        (*it)->supp_operator(targetClient);
+                        targetClient->supp_channel_operator(*it);
+                        if (targetClient->operator_vector_nul() == 1)
+                            targetClient->set_operator(false);
 
-                            // Vérifier si le client est opérateur
-                            if ((*it)->get_operator(targetClient) == NULL) {
-                                // Pas opérateur, on skip
-                                clientIndex++;
-                                continue;
-                            }
-
-                            // Retirer l'opérateur
-                            (*it)->supp_operator(targetClient);
-                            targetClient->supp_channel_operator(*it);
-                            if (targetClient->operator_vector_nul() == 1)
-                                targetClient->set_operator(false);
-
-                            // Concaténer les clients valides
-                            if (!validClientsList.empty()) {
-                                validClientsList += " ";
-                            }
-                            validClientsList += input[clientIndex];
-
-                            clientIndex++;
-                        }
-
+                        validClientsList = input[clientIndex];
                         oMode.param = validClientsList;
                     }
                     o_stop = 1;
@@ -509,7 +449,6 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
         i++;
     }
 
-    // Appliquer les changements de mode et envoyer les messages
     if (iMode.processed) {
         (*it)->set_on_invit(iMode.set);
         std::string message = ":" + client->get_nickname() + "!" + client->get_username() +
@@ -557,8 +496,7 @@ int Command::mode(std::vector<std::string> input, std::vector<Client*> clients, 
     {
         if (oMode.param != "")
         {
-            std::string message = ":" + client->get_nickname() + " MODE #" + channel_name +
-                                (oMode.set ? " +o " : " -o ") + oMode.param;
+            std::string message = ":" + client->get_nickname() + "!" + client->get_username() + "@localhost MODE #" + channel_name + (oMode.set ? " +o " : " -o ") + oMode.param;
             (*it)->send_message(message);
         }
     }
@@ -819,51 +757,6 @@ int Command::verif_mode_char(std::vector<std::string> input)
     }
     return 0;
 }
-
-// int Command::verif_mode_char(std::vector<std::string> input)
-// {
-//     for (size_t i = 0; i < input.size(); i++)
-//     {
-//         // Vérifier si la chaîne est vide
-//         if (input[i].empty())
-//             return 1;
-
-//         // Vérifier si la chaîne commence par '+' ou '-'
-//         if (input[i][0] == '+' || input[i][0] == '-')
-//         {
-//             // Si la chaîne n'a que le caractère '+' ou '-' sans autres caractères, c'est invalide
-//             if (input[i].size() == 1)
-//                 return 1;
-
-//             // Tableau pour suivre les modes déjà vus
-//             bool seen_modes[256] = {false}; // Tableau assez grand pour tous les caractères ASCII
-
-//             // Vérifier chaque caractère après le premier
-//             for (size_t j = 1; j < input[i].size(); j++)
-//             {
-//                 char current_mode = input[i][j];
-
-//                 // Vérifier si le caractère est un mode valide
-//                 if (current_mode != 'k' && current_mode != 'o' &&
-//                     current_mode != 'l' && current_mode != 'i' && current_mode != 't')
-//                 {
-//                     return 1;
-//                 }
-
-//                 // Vérifier si ce mode a déjà été vu dans cette chaîne
-//                 if (seen_modes[(unsigned char)current_mode])
-//                 {
-//                     // Le mode apparaît plus d'une fois, c'est invalide
-//                     return 1;
-//                 }
-
-//                 // Marquer le mode comme vu
-//                 seen_modes[(unsigned char)current_mode] = true;
-//             }
-//         }
-//     }
-//     return 0;
-// }
 
 int Command::after_w(std::string input, size_t index, int flag)
 {
