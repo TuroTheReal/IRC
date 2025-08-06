@@ -163,9 +163,7 @@ The server manages client authentication, channel operations, and message routin
   - Channel modes: `+i` (invite-only), `+t` (topic restriction), `+k` (key), `+o` (operator), `+l` (user limit)
 
 ### Server Commands
-- **PING/PONG**: Keep-alive mechanism
-- **WHO**: Query user information
-- **WHOIS**: Detailed user information
+- **PING/PONG**: Keep-alive mechanism (mandatory for clients)
 
 ### Bot Commands
 With irssi "privmsg: !<commands>", without "!<commands>"
