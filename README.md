@@ -166,7 +166,7 @@ The server manages client authentication, channel operations, and message routin
 - **PING/PONG**: Keep-alive mechanism (mandatory for clients)
 
 ### Bot Commands
-With irssi "privmsg: !<commands>", without "!<commands>"
+To run bot commands wirh irssi, you must use "privmsg: !commands", without just use "!commands"
 - **HELP**: Display all the bots commands
 - **WEATHER**: Show a fake weather
 - **WHOAMI**: Detailed user information
