@@ -215,13 +215,6 @@ hexchat # Connect to localhost:6667
 
 ## 42 School Standards
 
-### Norm Requirements
-- ✅ Maximum 25 lines per function
-- ✅ Maximum 5 functions per file
-- ✅ Proper indentation and formatting
-- ✅ C++98 standard compliance
-- ✅ Compilation without warnings (-Wall -Wextra -Werror)
-
 ### Project Standards
 - ✅ No memory leaks (validated with valgrind)
 - ✅ Non-blocking I/O implementation without threads
