@@ -15,8 +15,8 @@
 
 ## About
 
-This repository contains my implementation of the **IRC Server** project at 42 School.  
-The IRC (Internet Relay Chat) server is a complex network programming project that recreates one of the earliest chat protocols on the internet, originally developed around 1988.  
+This repository contains my implementation of the **IRC Server** project at 42 School.
+The IRC (Internet Relay Chat) server is a complex network programming project that recreates one of the earliest chat protocols on the internet, originally developed around 1988.
 Built entirely in **C++98**, this server handles multiple client connections simultaneously using **non-blocking I/O** and **socket programming** without threads, providing real-time messaging capabilities across channels and private conversations.
 
 The project demonstrates mastery of network protocols, concurrent programming, and system-level socket management while strictly adhering to the IRC protocol specifications.
@@ -208,7 +208,7 @@ hexchat # Connect to localhost:6667
 
 ### Load Testing
 - Multiple simultaneous connections
-- Channel flooding scenarios  
+- Channel flooding scenarios
 - Rapid connect/disconnect cycles
 - Invalid command sequences
 
@@ -239,6 +239,13 @@ hexchat # Connect to localhost:6667
 
 
 
+## 📝 Related Articles
+
+Blog posts documenting the learning process and context behind this project:
+
+- 📝 [42 Piscine and Common Core: What I Learned](https://arthur-portfolio.com/en/blog/42-piscine-and-core-curriculum) — Reflections on 42 School's selection process and 2-year curriculum
+
+---
 ## Contact
 
 - **GitHub**: [@TuroTheReal](https://github.com/TuroTheReal)
