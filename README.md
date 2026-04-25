@@ -11,6 +11,8 @@
 - [Server Architecture](#server-architecture)
 - [Testing](#testing)
 - [42 School Standards](#42-school-standards)
+- [Related Articles](#-related-articles)
+- [Contact](#contact)
 
 
 ## About
@@ -28,7 +30,7 @@ The project demonstrates mastery of network protocols, concurrent programming, a
 - **C++ Compiler** with C++98 standard support
 - **Make** utility
 - **UNIX/Linux environment** (socket programming)
-- **IRC Client** for testing (irssi(best), HexChat, WeeChat, etc.)
+- **IRC Client** for testing (irssi (best), HexChat, WeeChat, etc.)
 
 ### Compilation
 ```bash
@@ -166,8 +168,8 @@ The server manages client authentication, channel operations, and message routin
 - **PING/PONG**: Keep-alive mechanism (mandatory for clients)
 
 ### Bot Commands
-To run bot commands wirh irssi, you must use "privmsg: !commands", without just use "!commands"
-- **HELP**: Display all the bots commands
+To run bot commands with irssi, you must use `privmsg: !commands`; without irssi, just use `!commands`.
+- **HELP**: Display all the bot's commands
 - **WEATHER**: Show a fake weather
 - **WHOAMI**: Detailed user information
 - **TIME**: Give the exact time
