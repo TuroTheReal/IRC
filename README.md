@@ -245,7 +245,7 @@ hexchat # Connect to localhost:6667
 
 Blog posts documenting the learning process and context behind this project:
 
-- 📝 [42 Piscine and Common Core: What I Learned](https://arthur-portfolio.com/en/blog/42-piscine-and-core-curriculum) — Reflections on 42 School's selection process and 2-year curriculum
+- 📝 [42 Piscine and Common Core: What I Learned](https://arthurbernard.dev/en/blog/42-piscine-and-core-curriculum) — Reflections on 42 School's selection process and 2-year curriculum
 
 ---
 ## Contact
